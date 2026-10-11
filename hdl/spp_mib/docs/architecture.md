@@ -2,16 +2,8 @@
 
 ## 1. Block diagram
 
-```text
-                +-----------------------------------------------------------------------------+
- S_AxiLite ---->| olo_axi_lite_slave --Rb_*--> register process (two-process record) ---------|--> Cfg_*, Irq
-                |   (read timeout 4096)        | configuration, destinations, counters,       |--> Err_* event
-                |                              | event flags, injection commands              |--> Inj_*
-                |                              | table access FSMs (send, receive) -----------|--> TxTbl_*, RxTbl_*
- Err, events -->|                              +----------------------------------------------|
- Ecc_Sec/Ded -->| olo_ft_ecc_monitor (8 channels) --> ECC_STATUS, ECC_COUNT, event flags       |
-                +-----------------------------------------------------------------------------+
-```
+![Block diagram of spp_mib: bus interface (olo_axi_lite_slave), register file (MG-1) and EDAC monitor
+(olo_ft_ecc_monitor, MG-2)](img/spp_mib_arch.drawio.svg)
 
 ## 2. Register access
 
@@ -24,10 +16,7 @@ complete. The read timeout of the AXI4-Lite slave (4096 cycles) covers the initi
 
 One state machine per table, client B of the table:
 
-```text
- TIdle_s --request pending, table initialised--> TReq_s --grant--> TWait_s --read data--> TDone_s --> TIdle_s
-                                                                    (entry or write data)   (write or release)
-```
+![State machine of a table access: TIdle_s, TReq_s, TWait_s, TDone_s](img/spp_mib_fsm.drawio.svg)
 
 A write of the APID register sets a read request, a write of the entry register a write request with its data; the
 transaction always reads the entry first (the table protocol), then writes the new data or releases the entry. The

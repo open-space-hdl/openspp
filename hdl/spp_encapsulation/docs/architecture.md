@@ -2,13 +2,8 @@
 
 ## 1. Block diagram
 
-```text
- S_Pkt --> spp_encapsulation: destination table --> header --> spp_header_insert --> M_Link
-           (index from TUser bits 4:1)              (address, TLA, 0x02, 0x00, UA)
-
- S_Link --> spp_decapsulation: spp_header_remove (Cfg_RxStrip + 4 bytes) --> checks of the first beat --> M_Pkt
-                                                     removed bytes --+          forward or drop, event
-```
+![Block diagram of spp_encapsulation (header builder, header insertion) and spp_decapsulation (header removal,
+first-beat checks)](img/spp_encapsulation_arch.drawio.svg)
 
 ## 2. Encapsulation (EN-1)
 
@@ -24,11 +19,7 @@ beat.
 removal carries the strip count of the packet, so that the CPTP fields are read at the right offset even if the
 configuration changes later. The state machine decides with the first beat:
 
-```text
- First_s --checks pass--> Forward_s --last beat--> First_s
-    |                         (Space Packet, User Application value, EEP flag with the last beat)
-    +--check fails--> Drop_s --last beat: event (EEP takes precedence)--> First_s
-```
+![State machine of spp_decapsulation: First_s, Forward_s, Drop_s](img/spp_decapsulation_fsm.drawio.svg)
 
 | Order | Check | Reason |
 | --- | --- | --- |

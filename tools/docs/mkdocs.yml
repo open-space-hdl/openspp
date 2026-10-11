@@ -92,6 +92,7 @@ extra_css:
 
 plugins:
   - search
+  - glightbox  # click on a diagram to open it at full size; linked images (badges) are left alone
 
 validation:
   nav:

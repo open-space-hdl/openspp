@@ -2,17 +2,8 @@
 
 ## 1. Block diagram
 
-```text
-              +-------------------------------------------------------------------------------------------+
- S_Tx ------->| spp_send --M_Pkt--> spp_encapsulation --+-------------------------------------------------|--> M_Link
-              |    ^ Cfg, TxTbl                          | (Encapsulation_g = false: direct, destination   |
-              |    |                                     |  index in TUser)                                |
- M_Rx <-------| spp_receive <--S_Pkt-- spp_decapsulation <-----------------------------------------------|--- S_Link
-              |    ^ Cfg, RxTbl              ^ Cfg                                                       |
-              |    |                         |                                                           |
- S_AxiLite -->| spp_mib: managed parameters, destinations, table access, counters, events, EDAC monitor  |--> Irq, Err_*
-              +-------------------------------------------------------------------------------------------+
-```
+![Block diagram of spp_core: spp_send, spp_encapsulation, spp_mib, spp_decapsulation and spp_receive with the
+signal groups between them](img/spp_core_arch.drawio.svg)
 
 ## 2. Wiring
 

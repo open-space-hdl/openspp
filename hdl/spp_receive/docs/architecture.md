@@ -2,16 +2,8 @@
 
 ## 1. Block diagram
 
-```text
-            +---------------------------------------------------------------------------------------------+
-            | RE-1 spp_receive_buffer     RE-2 spp_receive_demux           RE-3 spp_receive_extraction    |
-S_Pkt ----->|   checks                    preparation --job--> transfer --> port 0 -----------------------|--> M_Rx[0]
-            |   olo_ft_fifo_packet --desc-->   |  ^             ^       --> port 1 -----------------------|--> M_Rx[1]
-            |                      --data------------------------+       --> ...                          |
-            |                       TB-2 spp_apid_table (client A)                                        |
-Tbl_* ----->| (client B: register file) ----------^                                                       |
-            +---------------------------------------------------------------------------------------------+
-```
+![Block diagram of spp_receive: reception (RE-1), demultiplexer (RE-2), packet extraction per user port (RE-3) and
+receive APID table (TB-2)](img/spp_receive_arch.drawio.svg)
 
 ## 2. Reception (RE-1, `spp_receive_buffer`)
 
@@ -41,13 +33,8 @@ An accepted packet writes a descriptor into an `olo_ft_fifo_sync`:
 
 Two concurrent state machines, as in the packet assembly of the sending end:
 
-```text
- preparation:  PIdle_s --pop descriptor--> PTable_s --table grant--> PRead_s --entry--> PWrite_s --> PJob_s
-                  ^       (descriptor DED: job with drop) -------------------------------------------->  |
-                  +------------------------------ job taken by the transfer <-----------------------------+
-
- transfer:     SIdle_s --job--> SStream_s --last beat--> SIdle_s
-```
+![State machines of the demultiplexer: preparation (PIdle_s to PJob_s) and transfer (SIdle_s,
+SStream_s)](img/spp_receive_fsm.drawio.svg)
 
 `PWrite_s` decides with the entry of the APID, in this order: double error in the entry (0x1B), path disabled or
 port beyond `NumRx_g` (0x19), Octet String port and Sequence Flags not '11' (0x1A). Otherwise the job carries the port
@@ -78,6 +65,7 @@ output beat.
 | `Cfg_MaxLength`, `Cfg_IdleDeliver`, `Cfg_TableInit` | 17, 1, 21 | in | Managed parameters, initial table entry |
 | `Tbl_*` | | | Client B of the receive APID table; `Tbl_Busy` during its initialisation |
 | `Err` | 2 events | out | Index 0: reception, 1: demultiplexer |
+| `Loss` | 1 | out | An indication with the loss indicator set (SPP 3.3.2.3, 3.4.2.4) |
 | `Delivered` | `NumRx_g` | out | An SDU left the port |
 | `Ecc_Sec`, `Ecc_Ded` | 4 | out | ECC events: 0 data buffer, 1 descriptor buffer, 2 table reads, 3 scrubber |
 | `ErrInj_Channel`, `ErrInj_Double`, `ErrInj_Valid` | 6, 1, 1 | in | Injection into the next write: channel 0 data buffer, 1 descriptor buffer, 2 table |

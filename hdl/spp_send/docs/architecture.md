@@ -2,18 +2,8 @@
 
 ## 1. Block diagram
 
-```text
-              +----------------------------------------------------------------------------------------+
- S_Tx[0] ---->| SE-1 spp_send_buffer --desc-->+                                                        |
-              |   checks, olo_ft_fifo_packet  |    SE-2 spp_send_mux     SE-3 spp_send_assembly         |
- S_Tx[1] ---->| SE-1 spp_send_buffer --desc-->+--> fixed priority / --> preparation --job--> transfer   |
-   ...        |   ...                --data-->+    round robin           |     ^           |            |
- S_Tx[n] ---->| SE-1 spp_send_buffer          |                          v     |           v            |
-              |                               +------- data of the port in transfer --> spp_header_insert --> M_Pkt
-              |                                                     TB-1 spp_apid_table (client A)      |
- Tbl_* ------>| (client B: register file) ----------------------------------^                          |
-              +----------------------------------------------------------------------------------------+
-```
+![Block diagram of spp_send: send buffers (SE-1) per user port, multiplexer (SE-2), packet assembly (SE-3)
+and send APID table (TB-1)](img/spp_send_arch.drawio.svg)
 
 ## 2. Send buffer (SE-1, `spp_send_buffer`)
 
@@ -54,13 +44,8 @@ arbiter advances only when its grant is taken.
 The assembly has two state machines that work concurrently, so that the preparation of the next packet overlaps the
 transfer of the current one.
 
-```text
- preparation:  PIdle_s --grant: pop descriptor--> PTable_s --table grant--> PRead_s --entry--> PWrite_s --> PJob_s
-                  ^         (descriptor DED: job with drop) ---------------------------------------------->  |
-                  +---------------------------------------- job taken by the transfer <-------------------------+
-
- transfer:     SIdle_s --job--> SStream_s --last beat--> SIdle_s
-```
+![State machines of the packet assembly: preparation (PIdle_s to PJob_s) and transfer (SIdle_s,
+SStream_s)](img/spp_send_fsm.drawio.svg)
 
 `PWrite_s` decides with the entry of the APID: a double error or a disabled path makes a job that drops the SDU and
 reports it; an Octet String gets its header, and the entry is written back with the incremented count unless a Packet

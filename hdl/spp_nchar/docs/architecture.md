@@ -2,13 +2,8 @@
 
 ## 1. Block diagram
 
-```text
- S_Link --> olo_base_wconv_xn2n (byte enables as word enables) --> data characters --+--> M_NChar
-              packet end held until its marker is sent ------------> marker EOP/EEP -+
-
- S_NChar --> one character held back --> olo_base_wconv_n2xn --> M_Link
-              (marker: the held character is the last one; EEP flag with the last beat)
-```
+![Block diagram of spp_nchar: transmit direction (link beats to N-Chars with end markers) and receive direction
+(N-Chars to link beats)](img/spp_nchar_arch.drawio.svg)
 
 ## 2. Transmit direction
 

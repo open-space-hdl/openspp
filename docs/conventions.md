@@ -58,6 +58,23 @@ and explains how to run the tests.
 Requirement IDs have the form `<GROUP>-<AREA>-<NN>`, for example `SE-IF-01`. The last column of a requirement table
 names the clauses with their standard (`SPP 4.1.3.5`, `CPTP 5.5.4.4`) or `none`.
 
+## Diagrams
+
+- Every architecture document has a block diagram; state machines and data formats have one where text alone is
+  hard to follow.
+- Diagrams are draw.io drawings stored as editable SVG with the drawing embedded (`<name>.drawio.svg`) in the `img/`
+  folder next to the document. The SVG is the source: open it in draw.io to change it. It is exported with the light
+  theme on an opaque white background, so that it reads in both colour schemes of the documentation site.
+- Blocks: light blue for OpenSPP logic, white with a blue outline for an OpenSPP entity instantiated as a whole, light
+  grey for an Open Logic entity, drawn inside the block that instantiates it. A dashed outline groups the blocks of
+  one entity instance; a stacked block is replicated per port (`× T`, `× R`). The title carries the building block ID
+  of the architecture (`SE-1 Send buffer`), the entity follows in grey.
+- Connections: thick lines for streams and buses, thin lines for single signals. Every line is horizontal or
+  vertical; a dot marks a branch. Ports cross the frame of the entity, inputs on the left, outputs on the right where
+  the layout allows.
+- A diagram is at most about 1000 px wide, so that its text stays readable in the content column, and its alt text
+  names the blocks it shows.
+
 ## Verification
 
 - VUnit runs every test (`run.py`); UVVM supplies VVCs, BFMs, checks, randomisation and functional coverage.

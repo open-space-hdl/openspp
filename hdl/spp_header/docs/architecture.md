@@ -4,16 +4,11 @@
 
 Both stages realign the bytes of a packet by a number of bytes that is constant during the packet. A residue register
 holds the bytes that did not fit into the last output beat; every output beat is the residue followed by the bytes of
-the current input beat. With `B` = `DataWidth_g` / 8 bytes per beat:
+the current input beat. With `B` = `DataWidth_g` / 8 bytes per beat, the figure shows both stages for `B` = 8 and
+a header of 6 bytes, one step per row:
 
-```text
- insertion, header of h bytes (h < B shown)      removal of r bytes (r < B shown)
-
- residue  | input beat k                         input beat k        | input beat k+1
- [h or B-o bytes][B bytes]                       [r removed][B-r bytes] [B bytes]
- output   = first B bytes                        output = residue (B-r bytes) + first r bytes of beat k+1
- residue := the other bytes                      residue := the other B-r bytes
-```
+![Byte realignment of spp_header_insert and spp_header_remove at 8 bytes per beat with a header of 6
+bytes](img/spp_header_principle.drawio.svg)
 
 A header of `B` bytes or more is output as complete header beats first; the rest of it becomes the first residue. In
 the removal the first beats of a packet are consumed without output until all removed bytes are captured. When the
@@ -50,17 +45,11 @@ beat it adds (header beats, flush beat) is an output beat.
 
 ## 3. State machines
 
-```text
- insertion                                         removal
+![State machines of spp_header_insert (Idle_s, Header_s, Data_s, Flush_s) and spp_header_remove (Idle_s,
+Data_s, Flush_s)](img/spp_header_fsm.drawio.svg)
 
- Idle_s --header >= B bytes--> Header_s            Idle_s --first beat--> Data_s --last beat--> Idle_s
-   |  <--last beat----+          |                   |                       |
-   |                  |          | header < B bytes  +--last beat------------+--residue left--> Flush_s
-   +--first beat--> Data_s <-----+                                                                |
-                      | last beat, residue left                                         Idle_s <--+
-                      v
-                   Flush_s --> Idle_s
-```
+A packet whose first beat is also its last goes from `Idle_s` (or `Header_s`) directly to `Idle_s` or, with a
+residue left, to `Flush_s`, like a last beat in `Data_s`.
 
 Both stages have a registered output beat: a new beat is computed when the output register is empty or is being
 read. The input is accepted in the same cycle (`In_Ready` follows `Out_Ready` combinationally), so that consecutive

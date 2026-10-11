@@ -174,21 +174,9 @@ Four properties of the standards shape the architecture more than any single fea
 
 ## 6 Architecture overview
 
-```text
-                +-----------------------------------------------------------------------------------------+
- S_Tx (T ports) | SE-1 send     SE-2          SE-3 packet          EN-1                                     |
- requests ----->| buffers  ---> multiplexer  ---> assembly     -----> encapsulation -------------------------|--> M_Link
-                |                                     ^                                                   |
-                |                                     | TB-1 send APID table                              |
-                |                                                                                         |
- M_Rx (R ports) | RE-3 packet   RE-2              RE-1               EN-2                                  |
- indications <--| extraction <- demultiplexer <--- reception   <----- decapsulation <---------------------|--- S_Link
-                |                    ^                                                                    |
-                |                    | TB-2 receive APID table                                            |
-                |                                                                                         |
- S_AxiLite ---->| MG-1 register file, MG-2 EDAC monitor                                     Irq, Err ---->|
-                +-----------------------------------------------------------------------------------------+
-```
+![Architecture overview of spp_core: the sending end (SE-1 to SE-3, TB-1) and the receiving end (RE-1 to RE-3,
+TB-2) between the user ports and the transfer layer (EN-1, EN-2), with the register file (MG-1, MG-2) in the
+middle](img/spp_core_overview.drawio.svg)
 
 At the sending end each user port has a buffer that checks every SDU while it arrives and holds complete SDUs. The
 multiplexer selects the next complete SDU, the packet assembly takes the Packet Sequence Count and the destination from

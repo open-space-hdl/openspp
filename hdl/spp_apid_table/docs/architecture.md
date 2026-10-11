@@ -2,16 +2,8 @@
 
 ## 1. Block diagram
 
-```text
-              +-----------------------------------------------------------+
- A_* -------->|  arbiter and      Wr_*  +-------------------------------+  |
- B_* -------->|  transaction  -------->|  olo_ft_ram_sdp_scrub         |  |
-              |  state machine  Rd_* ->|  2048 x Width_g, SECDED,      |--|--> Ecc_*, Scrub_*
- Init_Value ->|                <------ |  scrubber in idle cycles      |  |
-              |                 data   +-------------------------------+  |
- ErrInj_* --->|  injection latch (applied to the next client write)       |
-              +-----------------------------------------------------------+
-```
+![Block diagram of spp_apid_table: transaction control with the arbiter of clients A and B, and the table memory
+(olo_ft_ram_sdp_scrub)](img/spp_apid_table_arch.drawio.svg)
 
 ## 2. Ports
 
@@ -33,11 +25,7 @@
 
 ## 3. State machine
 
-```text
- reset --> Init_s --2048 writes--> Idle_s --grant A or B--> Read_s --read data--> Hold_s
-                                     ^                                               |
-                                     +------------- write back or release -----------+
-```
+![State machine of spp_apid_table: Init_s, Idle_s, Read_s, Hold_s](img/spp_apid_table_fsm.drawio.svg)
 
 `Init_s` writes `Init_Value` to the addresses 0 to 2047, one per cycle; the scrubber is held off meanwhile. `Idle_s`
 grants one request: client A unless client B also requests and A was served last. The grant (`Ready`) and the RAM
