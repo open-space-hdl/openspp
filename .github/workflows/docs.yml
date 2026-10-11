@@ -1,0 +1,56 @@
+name: Documentation
+
+# Builds the documentation website from the Markdown files of the repository (tools/docs/mkdocs.yml) and publishes it
+# with GitHub Pages at https://openspacehdl.org/openspp/. Pull requests and a private repository only build it: broken
+# links fail the build.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install MkDocs
+        run: python -m pip install -r tools/docs/requirements.txt
+      - name: Build website
+        env:
+          NO_MKDOCS_2_WARNING: "true"  # notice of Material for MkDocs about MkDocs 2.0; versions are pinned
+        run: python -m mkdocs build --strict -f tools/docs/mkdocs.yml
+      - name: Upload website
+        if: github.event_name != 'pull_request' && !github.event.repository.private
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: tools/docs/site
+
+  deploy:
+    if: github.event_name != 'pull_request' && !github.event.repository.private
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

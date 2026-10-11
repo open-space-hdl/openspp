@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  simulation-ghdl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Python packages
+        # vunit_hdl 5.0.0.dev7 is an sdist whose build needs pkg_resources (setuptools < 81)
+        run: |
+          python -m pip install "setuptools<81" wheel "setuptools_scm>=8"
+          python -m pip install --no-build-isolation -r requirements.txt
+      - name: Set up GHDL
+        uses: ghdl/setup-ghdl@v1
+        with:
+          version: latest
+          backend: mcode
+      - name: Run regression
+        run: python run.py -p 4 --xunit-xml results.xml
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vunit-results
+          path: results.xml
+
+  linting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Python packages
+        # vunit_hdl 5.0.0.dev7 is an sdist whose build needs pkg_resources (setuptools < 81)
+        run: |
+          python -m pip install "setuptools<81" wheel "setuptools_scm>=8"
+          python -m pip install --no-build-isolation -r requirements.txt
+      - name: VHDL lint (VSG)
+        run: python lint/lint.py
+      - name: Register map up to date
+        run: python tools/regmap.py --check
+      - name: Standard traceability
+        run: python tools/compliance.py --check
+      - name: Markdown lint
+        uses: DavidAnson/markdownlint-cli2-action@v17
+        with:
+          config: .markdownlint.json
+          globs: |
+            *.md
+            docs/**/*.md
+            hdl/**/*.md

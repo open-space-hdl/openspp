@@ -1,0 +1,109 @@
+/* Open Space HDL look for Material for MkDocs: colours and fonts of openspacehdl.org.
+   The fonts are served from this site (no requests to third parties). */
+
+@font-face {
+  font-family: "Sora";
+  src: url("../fonts/sora.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../fonts/jetbrains-mono.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+:root {
+  --osh-navy: #0E1A2B;
+  --osh-orange: #EE5A12;
+  --osh-orange-text: #B9430A;
+  --osh-light: #F4F6F8;
+  --md-text-font: "Sora";
+  --md-code-font: "JetBrains Mono";
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--osh-navy);
+  --md-primary-fg-color--light: #1B2B42;
+  --md-primary-fg-color--dark: #08111C;
+  --md-primary-bg-color: var(--osh-light);
+  --md-primary-bg-color--light: rgba(244, 246, 248, 0.7);
+  --md-accent-fg-color: var(--osh-orange);
+  --md-accent-fg-color--transparent: rgba(238, 90, 18, 0.1);
+  --md-typeset-a-color: var(--osh-orange-text);
+  --md-code-bg-color: #F1F3F6;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 215;
+  --md-default-bg-color: #0B1420;
+  --md-primary-fg-color: var(--osh-navy);
+  --md-primary-fg-color--light: #1B2B42;
+  --md-primary-fg-color--dark: #08111C;
+  --md-primary-bg-color: var(--osh-light);
+  --md-primary-bg-color--light: rgba(244, 246, 248, 0.7);
+  --md-accent-fg-color: #F28A52;
+  --md-accent-fg-color--transparent: rgba(242, 138, 82, 0.12);
+  --md-typeset-a-color: #F28A52;
+  --md-code-bg-color: #131F2F;
+}
+
+/* Wider page for specification tables and text diagrams */
+.md-grid {
+  max-width: 76rem;
+}
+
+/* Header and tabs in navy, separated from the page in the dark scheme */
+.md-header,
+.md-tabs {
+  background-color: var(--osh-navy);
+}
+
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs {
+  border-bottom: 1px solid #1B2B42;
+}
+
+.md-header__button.md-logo img {
+  height: 1.7rem;
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover {
+  color: var(--osh-orange);
+  opacity: 1;
+}
+
+/* Headings as on openspacehdl.org */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h1 {
+  color: var(--md-default-fg-color);
+}
+
+/* Dense specification tables: smaller text, no forced wrapping of identifiers */
+.md-typeset table:not([class]) {
+  font-size: 0.7rem;
+}
+
+.md-typeset table:not([class]) code {
+  white-space: nowrap;
+}
+
+/* Text diagrams keep their alignment */
+.md-typeset pre > code {
+  font-variant-ligatures: none;
+}
+
+/* Display math rendered as MathML at build time */
+.md-typeset .arithmatex {
+  overflow-x: auto;
+  margin: 1em 0;
+}

@@ -1,0 +1,10 @@
+# OpenSPP modules in dependency order (compiled into the library openspp by run.py)
+hdl/spp_pkg
+hdl/spp_header
+hdl/spp_apid_table
+hdl/spp_send
+hdl/spp_receive
+hdl/spp_encapsulation
+hdl/spp_mib
+hdl/spp_core
+hdl/spp_nchar

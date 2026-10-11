@@ -1,0 +1,127 @@
+# Documentation site of OpenSPP, published at https://openspacehdl.org/openspp/
+#
+# The pages are the Markdown files of the repository (README files, docs/, hdl/<module>/docs/); hooks.py adds them
+# to the site and links every other repository file on GitHub. Local preview:
+#
+#   python -m pip install -r tools/docs/requirements.txt
+#   mkdocs serve -f tools/docs/mkdocs.yml
+
+site_name: OpenSPP
+site_description: Open implementation of the CCSDS Space Packet Protocol for SpaceWire and SpaceFibre networks
+site_url: https://openspacehdl.org/openspp/
+repo_url: https://github.com/open-space-hdl/openspp
+repo_name: open-space-hdl/openspp
+edit_uri: edit/main/
+copyright: >-
+  <a href="https://openspacehdl.org">Open Space HDL</a> ·
+  OpenSPP is licensed under the PSI HDL Library License, Version 1.0
+
+docs_dir: content
+use_directory_urls: false
+strict: true
+
+hooks:
+  - hooks.py
+
+extra:
+  homepage: https://openspacehdl.org
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/open-space-hdl
+      name: Open Space HDL on GitHub
+  collect:
+    include:
+      - README.md
+      - docs/**
+      - hdl/*/README.md
+      - hdl/*/docs/**
+    order_file: component_list.txt
+    page_order: [README, specification, architecture, register_map, verification_plan, verification_report]
+
+nav:
+  - Home: README.md
+  - Guide:
+      - User guide: docs/user_guide.md
+      - Architecture: docs/architecture.md
+  - Modules: hdl/*/
+  - Verification:
+      - Compliance matrix: docs/compliance.md
+      - Code coverage: docs/coverage.md
+  - Project:
+      - Roadmap: docs/roadmap.md
+      - Conventions: docs/conventions.md
+      - docs/*.md
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  logo: assets/images/logo.svg
+  favicon: assets/images/favicon.svg
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.footer
+    - navigation.indexes
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.follow
+
+extra_css:
+  - assets/stylesheets/brand.css
+
+plugins:
+  - search
+
+validation:
+  nav:
+    omitted_files: info
+    not_found: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: info
+    unrecognized_links: warn
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink
+  - pymdownx.superfences
+  - pymdownx.tasklist
+  - pymdownx.tilde:
+      subscript: false
+  - mdx_truly_sane_lists:
+      nested_indent: 2

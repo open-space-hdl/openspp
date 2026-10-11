@@ -1,0 +1,303 @@
+# ---------------------------------------------------------------------------------------------------
+# Copyright (c) 2026 by Julian Schneider
+# Authors: Julian Schneider
+# ---------------------------------------------------------------------------------------------------
+# Register map of the OpenSPP MIB: the single description from which tools/regmap.py generates the
+# VHDL package hdl/spp_pkg/src/spp_regs_pkg.vhd, the documentation hdl/spp_mib/docs/register_map.md and
+# the C header sw/spp_regs.h.
+#
+# Byte addresses of 32-bit registers on the AXI4-Lite port (11-bit address). Access per field:
+#   RO   read only
+#   RW   read and write
+#   W1   write one: command, reads as zero
+#   W1C  sticky flag, write one to clear
+#   WO   write only, reads as zero
+#   RC   read only, any write to the register clears it (counters)
+# A reset value written as text depends on generics; status fields have none. Error counters are 16 bits
+# wide, packet counters 32 bits; all counters saturate.
+
+id: 0x53505001
+addr_bits: 11
+
+registers:
+  - name: ID
+    offset: 0x000
+    description: Identification of the core and version of the register map
+    fields:
+      - {name: ID, bits: "31:0", access: RO, reset: 0x53505001, description: "0x535050 (SPP) and register map version 1"}
+
+  - name: GENERICS
+    offset: 0x004
+    description: Generics of the core (product characteristics)
+    fields:
+      - {name: NUM_TX, bits: "4:0", access: RO, reset: NumTx_g, description: Send ports}
+      - {name: NUM_RX, bits: "9:5", access: RO, reset: NumRx_g, description: Receive ports}
+      - {name: NUM_DEST, bits: "14:10", access: RO, reset: NumDest_g, description: Destinations}
+      - {name: SPW_ADDR_BYTES, bits: "19:15", access: RO, reset: SpwAddrBytes_g, description: Maximum Target SpaceWire Address in bytes}
+      - {name: DATA_BYTES, bits: "24:20", access: RO, reset: DataWidth_g / 8, description: Bytes per beat of the streams}
+      - {name: ENCAPSULATION, bits: "25", access: RO, reset: Encapsulation_g, description: "CPTP layer implemented (ECSS-E-ST-50-53C)"}
+
+  - name: SERVICES
+    offset: 0x008
+    description: "Service type of every port (SPP Table 5-1)"
+    fields:
+      - {name: TX_OCTET, bits: "15:0", access: RO, reset: TxOctetString_g, description: "Bit p: send port p uses the Octet String Service ('1') or the Packet Service ('0')"}
+      - {name: RX_OCTET, bits: "31:16", access: RO, reset: RxOctetString_g, description: "Bit p: receive port p uses the Octet String Service ('1') or the Packet Service ('0')"}
+
+  - name: TX_BUFFER
+    offset: 0x00C
+    description: Send buffer of every send port
+    fields:
+      - {name: BYTES, bits: "31:0", access: RO, reset: TxBufferBytes_g, description: Bytes}
+
+  - name: RX_BUFFER
+    offset: 0x010
+    description: Receive buffer
+    fields:
+      - {name: BYTES, bits: "31:0", access: RO, reset: RxBufferBytes_g, description: Bytes}
+
+  - name: CONFIG
+    offset: 0x020
+    description: Managed parameters
+    fields:
+      - {name: ROUND_ROBIN, bits: "0", access: RW, reset: RoundRobin_g, description: "Packet Multiplexing Scheme: '0' fixed priority (port 0 first), '1' round robin (SPP 4.2.3.2)"}
+      - {name: IDLE_DELIVER, bits: "1", access: RW, reset: 0, description: "Deliver received Idle Packets like other packets; '0' discards them"}
+      - {name: TLA_CHECK, bits: "2", access: RW, reset: 0, description: "Discard received CPTP packets whose Target Logical Address is neither TLA nor 0xFE"}
+      - {name: RX_STRIP, bits: "7:4", access: RW, reset: 0, description: "Leading bytes removed in front of the CPTP header of a received packet (CPTP 5.3.1)"}
+      - {name: TLA, bits: "15:8", access: RW, reset: Tla_g, description: Own Target Logical Address of the filter}
+
+  - name: MAX_LENGTH
+    offset: 0x024
+    description: "Maximum Packet Length (SPP Table 5-1, CPTP Annex A); written values are limited to 7 to 65542"
+    fields:
+      - {name: LENGTH, bits: "16:0", access: RW, reset: MaxLength_g, description: Maximum Space Packet length in bytes}
+
+  - name: TX_TABLE_APID
+    offset: 0x030
+    description: "APID of the send APID table access; a write reads its entry into TX_TABLE_ENTRY"
+    fields:
+      - {name: APID, bits: "10:0", access: RW, reset: 0, description: APID}
+
+  - name: TX_TABLE_ENTRY
+    offset: 0x034
+    description: "Entry of TX_TABLE_APID; a write writes the entry, a read waits for a pending access"
+    fields:
+      - {name: COUNT, bits: "13:0", access: RW, reset: 0, description: "Packet Sequence Count of the next Octet String (SPP 4.1.3.4.3)"}
+      - {name: DEST, bits: "17:14", access: RW, reset: 0, description: Destination index}
+      - {name: ENABLE, bits: "18", access: RW, reset: 0, description: "Managed data path enabled (SPP 4.2.3.3)"}
+      - {name: DED, bits: "31", access: RO, description: Double error detected in the entry read}
+
+  - name: RX_TABLE_APID
+    offset: 0x038
+    description: "APID of the receive APID table access; a write reads its entry into RX_TABLE_ENTRY"
+    fields:
+      - {name: APID, bits: "10:0", access: RW, reset: 0, description: APID}
+
+  - name: RX_TABLE_ENTRY
+    offset: 0x03C
+    description: "Entry of RX_TABLE_APID; a write writes the entry, a read waits for a pending access"
+    fields:
+      - {name: LAST, bits: "13:0", access: RW, reset: 0, description: Last Packet Sequence Count received}
+      - {name: VALID, bits: "14", access: RW, reset: 0, description: LAST is valid}
+      - {name: CHECK, bits: "15", access: RW, reset: 0, description: "Continuity check enabled (SPP 3.3.2.3, 3.4.2.4)"}
+      - {name: PORT, bits: "19:16", access: RW, reset: 0, description: Receive port}
+      - {name: ENABLE, bits: "20", access: RW, reset: 0, description: "Managed data path enabled (SPP 4.3.3.2)"}
+      - {name: DED, bits: "31", access: RO, description: Double error detected in the entry read}
+
+  - name: TABLE_STATUS
+    offset: 0x040
+    description: Status of the APID tables
+    fields:
+      - {name: TX_BUSY, bits: "0", access: RO, description: Send APID table initialised or accessed}
+      - {name: RX_BUSY, bits: "1", access: RO, description: Receive APID table initialised or accessed}
+      - {name: TX_OVERRUN, bits: "2", access: W1C, reset: 0, description: A write to TX_TABLE_APID or TX_TABLE_ENTRY while the previous access was pending was ignored}
+      - {name: RX_OVERRUN, bits: "3", access: W1C, reset: 0, description: A write to RX_TABLE_APID or RX_TABLE_ENTRY while the previous access was pending was ignored}
+
+  - name: LAST_ERROR
+    offset: 0x050
+    description: Last rejected SDU or discarded packet
+    fields:
+      - {name: CODE, bits: "4:0", access: RO, description: Reason (error code)}
+      - {name: PORT, bits: "11:8", access: RO, description: Port of the SDU or packet; 0 when unknown}
+      - {name: APID, bits: "26:16", access: RO, description: APID of the SDU or packet; 0 when unknown}
+
+  - name: EVENTS
+    offset: 0x054
+    description: Event flags
+    fields:
+      - {name: TX_REJECT, bits: "0", access: W1C, reset: 0, description: "SDU rejected by the sending end (CPTP 5.5.2c)"}
+      - {name: RX_DISCARD, bits: "1", access: W1C, reset: 0, description: "Packet discarded by the receiving end (CPTP 5.5.4.3b, 5.5.4.4b)"}
+      - {name: TX_SENT, bits: "2", access: W1C, reset: 0, description: Space Packet sent}
+      - {name: RX_DELIVERED, bits: "3", access: W1C, reset: 0, description: SDU delivered}
+      - {name: RX_LOSS, bits: "4", access: W1C, reset: 0, description: "Indication with the loss indicator set (SPP 3.3.2.3, 3.4.2.4)"}
+      - {name: ECC_SEC, bits: "5", access: W1C, reset: 0, description: Single error corrected in a buffer or table}
+      - {name: ECC_DED, bits: "6", access: W1C, reset: 0, description: Double error detected in a buffer or table}
+
+  - name: IRQ_EN
+    offset: 0x058
+    description: Interrupt enable of the event flags
+    fields:
+      - {name: ENABLE, bits: "6:0", access: RW, reset: 0, description: Bit n enables EVENTS bit n}
+
+  - name: IRQ_STATUS
+    offset: 0x05C
+    description: Interrupt output
+    fields:
+      - {name: IRQ, bits: "0", access: RO, description: "Irq: OR of the enabled event flags"}
+
+  - name: ECC_STATUS
+    offset: 0x060
+    description: EDAC status of the buffers and tables
+    fields:
+      - {name: DED, bits: "7:0", access: RC, reset: 0, description: "Bit n: double error detected in channel n (0 send data buffers, 1 send descriptor buffers, 2 send APID table, 3 its scrubber, 4 receive data buffer, 5 receive descriptor buffer, 6 receive APID table, 7 its scrubber); any write clears all counters and flags"}
+
+  - name: ECC_SELECT
+    offset: 0x064
+    description: Channel shown in ECC_COUNT
+    fields:
+      - {name: CHANNEL, bits: "2:0", access: RW, reset: 0, description: Channel 0 to 7}
+
+  - name: ECC_COUNT
+    offset: 0x068
+    description: SEC and DED counters of the selected channel
+    fields:
+      - {name: DED, bits: "31:16", access: RC, reset: 0, description: Double errors detected}
+      - {name: SEC, bits: "15:0", access: RC, reset: 0, description: Single errors corrected; any write clears the selected channel}
+
+  - name: ECC_INJECT
+    offset: 0x06C
+    description: Error injection into the next word written to a buffer or table (tests)
+    fields:
+      - {name: DOUBLE, bits: "9", access: W1, reset: 0, description: Inject a double error}
+      - {name: SINGLE, bits: "8", access: W1, reset: 0, description: Inject a single error}
+      - {name: RX, bits: "7", access: WO, reset: 0, description: "'0' sending end, '1' receiving end"}
+      - {name: CHANNEL, bits: "5:0", access: WO, reset: 0, description: "Sending end: 2 p data buffer of port p, 2 p + 1 its descriptor buffer, 2 NUM_TX table; receiving end: 0 data buffer, 1 descriptor buffer, 2 table"}
+
+  - name: SCRUB
+    offset: 0x070
+    description: Scrubbers of the APID tables
+    fields:
+      - {name: ENABLE, bits: "0", access: RW, reset: 1, description: Both scrubbers enabled}
+
+  - name: TX_PACKETS
+    offset: 0x080
+    description: Space Packets sent
+    fields:
+      - {name: COUNT, bits: "31:0", access: RC, reset: 0, description: Packets}
+
+  - name: RX_PACKETS
+    offset: 0x084
+    description: SDUs delivered to the receive ports
+    fields:
+      - {name: COUNT, bits: "31:0", access: RC, reset: 0, description: SDUs}
+
+  - name: RX_LOSS
+    offset: 0x088
+    description: "Indications with the loss indicator set (SPP 3.3.2.3, 3.4.2.4)"
+    fields:
+      - {name: COUNT, bits: "31:0", access: RC, reset: 0, description: Indications}
+
+  - name: ERR_TX1
+    offset: 0x0A0
+    description: SDUs rejected by the sending end (1)
+    fields:
+      - {name: OVERSIZE, bits: "15:0", access: RC, reset: 0, description: "Longer than the maximum packet length or the buffer (0x01)"}
+      - {name: SHORT, bits: "31:16", access: RC, reset: 0, description: "Space Packet shorter than 7 bytes (0x02)"}
+
+  - name: ERR_TX2
+    offset: 0x0A4
+    description: SDUs rejected by the sending end (2)
+    fields:
+      - {name: VERSION, bits: "15:0", access: RC, reset: 0, description: "Packet Version Number not '000' (0x03)"}
+      - {name: LENGTH, bits: "31:16", access: RC, reset: 0, description: "Length not the Packet Data Length plus 7 (0x04)"}
+
+  - name: ERR_TX3
+    offset: 0x0A8
+    description: SDUs rejected by the sending end (3)
+    fields:
+      - {name: IDLE, bits: "15:0", access: RC, reset: 0, description: "Idle Packet with SHF or SHI (0x05)"}
+      - {name: NAME, bits: "31:16", access: RC, reset: 0, description: "Packet Name for a telemetry packet (0x06)"}
+
+  - name: ERR_TX4
+    offset: 0x0AC
+    description: SDUs rejected by the sending end (4)
+    fields:
+      - {name: NO_PATH, bits: "15:0", access: RC, reset: 0, description: "APID without enabled managed data path (0x07)"}
+      - {name: BUFFER, bits: "31:16", access: RC, reset: 0, description: "Double error in the descriptor or the table entry (0x08)"}
+
+  - name: ERR_RX1
+    offset: 0x0B0
+    description: Packets discarded by the receiving end (1)
+    fields:
+      - {name: EEP, bits: "15:0", access: RC, reset: 0, description: "Terminated by an EEP (0x10, CPTP status 0x01)"}
+      - {name: PROTOCOL_ID, bits: "31:16", access: RC, reset: 0, description: "Protocol Identifier other than 2 (0x11)"}
+
+  - name: ERR_RX2
+    offset: 0x0B4
+    description: Packets discarded by the receiving end (2)
+    fields:
+      - {name: RESERVED, bits: "15:0", access: RC, reset: 0, description: "Reserved field not zero (0x12, CPTP status 0x02)"}
+      - {name: ADDRESS, bits: "31:16", access: RC, reset: 0, description: "Target Logical Address not accepted (0x13)"}
+
+  - name: ERR_RX3
+    offset: 0x0B8
+    description: Packets discarded by the receiving end (3)
+    fields:
+      - {name: SHORT, bits: "15:0", access: RC, reset: 0, description: "Shorter than the CPTP header or than 7 bytes (0x14)"}
+      - {name: VERSION, bits: "31:16", access: RC, reset: 0, description: "Packet Version Number not '000' (0x15)"}
+
+  - name: ERR_RX4
+    offset: 0x0BC
+    description: Packets discarded by the receiving end (4)
+    fields:
+      - {name: LENGTH, bits: "15:0", access: RC, reset: 0, description: "Length not the Packet Data Length plus 7 (0x16)"}
+      - {name: OVERSIZE, bits: "31:16", access: RC, reset: 0, description: "Longer than the maximum packet length or the buffer (0x17)"}
+
+  - name: ERR_RX5
+    offset: 0x0C0
+    description: Packets discarded by the receiving end (5)
+    fields:
+      - {name: IDLE, bits: "15:0", access: RC, reset: 0, description: "Idle Packet (0x18)"}
+      - {name: NO_PATH, bits: "31:16", access: RC, reset: 0, description: "APID without enabled managed data path or with an invalid port (0x19)"}
+
+  - name: ERR_RX6
+    offset: 0x0C4
+    description: Packets discarded by the receiving end (6)
+    fields:
+      - {name: FLAGS, bits: "15:0", access: RC, reset: 0, description: "Sequence Flags other than '11' for an Octet String port (0x1A)"}
+      - {name: BUFFER, bits: "31:16", access: RC, reset: 0, description: "Double error in the descriptor or the table entry (0x1B)"}
+
+arrays:
+  - name: DEST
+    base: 0x400
+    stride: 0x20
+    count: 16
+    description: "Destinations of the encapsulation (CPTP 5.3.1, 5.3.2, 5.3.5); NUM_DEST instances"
+    registers:
+      - name: DEST_CTRL
+        offset: 0x00
+        description: Target Logical Address, User Application value and length of the Target SpaceWire Address
+        fields:
+          - {name: TLA, bits: "7:0", access: RW, reset: 0xFE, description: Target Logical Address}
+          - {name: UA, bits: "15:8", access: RW, reset: 0, description: User Application value}
+          - {name: ADDR_LEN, bits: "20:16", access: RW, reset: 0, description: "Bytes of the Target SpaceWire Address, 0 to SPW_ADDR_BYTES"}
+      - name: DEST_ADDR0
+        offset: 0x04
+        description: Target SpaceWire Address bytes 0 to 3 (byte 0 first transmitted)
+        fields:
+          - {name: ADDR, bits: "31:0", access: RW, reset: 0, description: Byte 0 in bits 7:0}
+      - name: DEST_ADDR1
+        offset: 0x08
+        description: Target SpaceWire Address bytes 4 to 7
+        fields:
+          - {name: ADDR, bits: "31:0", access: RW, reset: 0, description: Byte 4 in bits 7:0}
+      - name: DEST_ADDR2
+        offset: 0x0C
+        description: Target SpaceWire Address bytes 8 to 11
+        fields:
+          - {name: ADDR, bits: "31:0", access: RW, reset: 0, description: Byte 8 in bits 7:0}
+      - name: DEST_ADDR3
+        offset: 0x10
+        description: Target SpaceWire Address bytes 12 to 15
+        fields:
+          - {name: ADDR, bits: "31:0", access: RW, reset: 0, description: Byte 12 in bits 7:0}

@@ -1,0 +1,8 @@
+[submodule "open-logic"]
+	path = open-logic
+	url = https://github.com/open-space-hdl/open-logic-ft.git
+	branch = fault-tolerant
+[submodule "uvvm"]
+	path = uvvm
+	url = https://github.com/UVVM/UVVM.git
+	shallow = true

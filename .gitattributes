@@ -1,0 +1,6 @@
+# Keep LF line endings in the repository and in the working tree
+* text=auto eol=lf
+# Transceiver configuration files are read by encrypted vendor models: LF only
+*.mem text eol=lf
+*.png binary
+*.svg text eol=lf
