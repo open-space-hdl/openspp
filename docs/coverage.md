@@ -27,9 +27,9 @@ Closure rules:
 
 ## 2. Result
 
-Run on 2026-10-10: 145 tests (64 test cases in their configurations), all passed, 17 minutes with one simulator
-licence. Numbers are covered/total bins per file; bold marks a metric with misses. The FSM columns of
-`spp_send_assembly.vhd` count both of its state machines; section 4 explains the misses.
+Run on 2026-10-10: 145 tests (64 test cases in their configurations), all passed, 17 minutes. Numbers are
+covered/total bins per file; bold marks a metric with misses. The FSM columns of `spp_send_assembly.vhd` count both
+of its state machines; section 4 explains the misses.
 
 | File | Statements | Branches | FSM States | FSM Transitions | Conditions | Expressions |
 | --- | --- | --- | --- | --- | --- | --- |
