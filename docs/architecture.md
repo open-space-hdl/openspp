@@ -241,9 +241,9 @@ route by it when the CPTP layer is removed.
 ### Clock and reset
 
 All blocks run in `Clk`. The reset input `Rst` is synchronous and high-active (Open Logic convention); the integrator
-synchronises it to `Clk`, for example with `olo_ft_reset_gen`. After the reset the core initialises the APID tables
-(2048 clock cycles); meanwhile the send buffers accept SDUs, and packets are sent and delivered once the tables are
-ready.
+synchronises it to `Clk`, for example with `olo_base_reset_gen` and `SyncTmr_g = true`. After the reset the core
+initialises the APID tables (2048 clock cycles); meanwhile the send buffers accept SDUs, and packets are sent and
+delivered once the tables are ready.
 
 ### Internal interfaces
 
