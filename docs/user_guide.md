@@ -43,9 +43,9 @@ mission by software.
 ## 3. Clock and reset
 
 All of the core runs in `Clk`; there is no clock domain crossing. `Rst` is synchronous and high-active (Open Logic
-convention); synchronise its release to `Clk`, for example with `olo_ft_reset_gen`. After the reset the core
-initialises both APID tables (2048 clock cycles, `TABLE_STATUS.TX_BUSY` and `RX_BUSY`). The send ports accept SDUs
-meanwhile; packets are sent and delivered once the tables are ready.
+convention); synchronise its release to `Clk`, for example with `olo_base_reset_gen` and `SyncTmr_g = true`. After
+the reset the core initialises both APID tables (2048 clock cycles, `TABLE_STATUS.TX_BUSY` and `RX_BUSY`). The send
+ports accept SDUs meanwhile; packets are sent and delivered once the tables are ready.
 
 Every path accepts one beat per clock cycle while its output is ready. The sending end adds no cycle per packet, the
 receiving end one cycle per packet. At 100 MHz and 32 bits the core carries 3.2 Gbit/s in each direction.
