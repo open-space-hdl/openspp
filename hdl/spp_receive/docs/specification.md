@@ -19,6 +19,7 @@ Count, and delivers each packet intact (Packet Service) or as an Octet String (O
 | RE-IF-03 | `TUser` of a user port shall carry the APID, the Secondary Header Indicator, the loss indicator and the User Application value of the SDU, constant during the SDU, and an error flag with the last beat. | SPP 3.3.2.2, 3.4.2.2, 3.4.3.3.2; CPTP 5.2.3.2 |
 | RE-IF-04 | Every discarded packet shall be reported as a one-cycle event with its reason, its user port when known and its APID; every delivered SDU shall be signalled per port. | CPTP 5.5.4.4b |
 | RE-IF-05 | The reset input shall return the receiving end from any state to an empty state and initialise the receive APID table again. | none (D14) |
+| RE-IF-06 | A last beat without byte enables at the packet input shall end the packet, which consists of the bytes of the earlier beats; its SDU shall leave the user port without that beat, and a packet without any byte is shorter than 7 bytes (0x14). | SPP 4.1.4.1.2; none (D15) |
 
 ### 2.2 Reception (RE-1)
 

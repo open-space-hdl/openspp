@@ -138,8 +138,9 @@ def main():
     add_open_logic(vu)
     add_uvvm(vu)
     lib, modules = add_openspp(vu)
-    apply_module_configs(lib, modules)
+    # Simulator options first: options of a module configuration (vunit_config.py) override them
     set_simulator_options(vu)
+    apply_module_configs(lib, modules)
     if COVERAGE:
         vu.set_sim_option("enable_coverage", True)
     vu.main(post_run=merge_coverage)

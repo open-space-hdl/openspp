@@ -171,6 +171,8 @@ begin
             Apid_v := User_v(TxUserApid_t);
             if Over_v = '1' then
                 Code_v := ErrTxOversize_c;                                    -- SPP 3.2.3.1, CPTP 5.5.2c
+            elsif Cnt_v = 0 then
+                Code_v := ErrTxShort_c;                                       -- SPP 3.2.3.1, 4.1.4.1.2
             elsif Apid_v = IdleApid_c and User_v(TxUserShi_c) = '1' then
                 Code_v := ErrTxIdle_c;                                        -- SPP 4.1.3.3.3.4
             elsif User_v(TxUserNameValid_c) = '1' and User_v(TxUserType_c) = '0' then

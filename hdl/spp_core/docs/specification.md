@@ -17,6 +17,7 @@ specified in the modules.
 | CO-IF-01 | The core shall provide `NumTx_g` send ports and `NumRx_g` receive ports of the services selected per port, one transmit and one receive link port, an AXI4-Lite register port, an interrupt and an error event output, all in the clock domain `Clk` with the synchronous reset `Rst`. | SPP 4.2.3.1, 4.3.3.1 |
 | CO-IF-02 | With `Encapsulation_g` = true the link ports shall carry CPTP packets; with false they shall carry the Space Packets, the destination index in `TUser` of the transmit link, and the received packets shall have the User Application value 0. | CPTP 5.4 |
 | CO-IF-03 | After the reset every APID shall have an enabled managed data path to destination 0 and to receive port 0 when `TxPathDefault_g` and `RxPathDefault_g` are true, and none when they are false. | SPP 4.2.3.3, 4.3.3.2 |
+| CO-IF-04 | After the reset and the initialisation of the APID tables, no register that feeds the arithmetic or the conversions of the data paths shall hold an undefined value, also while the core is idle; a last beat without byte enables at a send port or at the receive link port shall end the SDU or packet without a beat without bytes at an output. | SPP 4.1.4.1.2; none (D15, D16) |
 
 ### 2.2 System behaviour
 

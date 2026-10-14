@@ -55,8 +55,10 @@ receiving end one cycle per packet. At 100 MHz and 32 bits the core carries 3.2 
 All data interfaces are AXI4-Stream ports with `TKeep`. A packet of the stream is one SDU or one packet: `TLast`
 marks its last beat, all bytes of a beat are valid except in the last beat, whose valid bytes are contiguous from
 byte lane 0. Byte lane 0 (`TData(7:0)`) holds the first byte of the beat, and the first byte of a packet is the first
-byte transmitted on the network. Port p of a vector port uses the bits p of `Valid`, `Ready` and `Last` and the slice
-p of `Data`, `Keep` and `User`.
+byte transmitted on the network. At the inputs (send ports, `S_Link`) a last beat without valid bytes (AXI4-Stream
+null bytes) is accepted: it ends the SDU or packet, which consists of the bytes of the earlier beats. The outputs
+never carry a beat without valid bytes. An SDU without any byte is rejected (0x02, SPP 3.2.3.1 and 4.1.4.1.2). Port
+p of a vector port uses the bits p of `Valid`, `Ready` and `Last` and the slice p of `Data`, `Keep` and `User`.
 
 ### 4.1 Send ports (`S_Tx_*`)
 
@@ -126,7 +128,7 @@ counter in the register file (`ERR_TX1` to `ERR_RX6`); `LAST_ERROR` holds the la
 | Code | Reason | Code | Reason |
 | --- | --- | --- | --- |
 | 0x01 | SDU longer than the maximum packet length or the buffer | 0x10 | Packet ended with an EEP (CPTP status 0x01) |
-| 0x02 | Space Packet shorter than 7 bytes | 0x11 | Protocol Identifier other than 2 |
+| 0x02 | Space Packet shorter than 7 bytes, or Octet String without any byte | 0x11 | Protocol Identifier other than 2 |
 | 0x03 | Packet Version Number not '000' | 0x12 | Reserved field not zero (CPTP status 0x02) |
 | 0x04 | Length not the Packet Data Length plus 7 | 0x13 | Target Logical Address not accepted |
 | 0x05 | Idle Packet with SHF or SHI set | 0x14 | Shorter than the CPTP header or than 7 bytes |
@@ -146,7 +148,9 @@ takes precedence over every other reason.
 
 `spp_nchar` converts the link stream to the N-Char stream of the OpenWire core and back: one data character per beat,
 the end of packet marker as a separate beat with `TLast` = '1' (`TData(0)` = '0' EOP, '1' EEP). It has the generic
-`DataWidth_g` of the core. A received marker without data characters is discarded.
+`DataWidth_g` of the core. A received marker without data characters is discarded. A link packet that ends with a
+beat without valid bytes gets its marker after the bytes of the earlier beats; a link packet without any byte sends
+nothing.
 
 ## 5. Programming sequence
 

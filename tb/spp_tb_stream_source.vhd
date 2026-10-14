@@ -79,6 +79,9 @@ begin
             else
                 Len_v   := SppTbStore_v.headLength(Channel_g);
                 Beats_v := (Len_v + Bytes_c - 1) / Bytes_c;
+                if SppTbStore_v.getNullTail(Channel_g) then
+                    Beats_v := Beats_v + 1;
+                end if;
 
                 for b in 0 to Beats_v - 1 loop
 

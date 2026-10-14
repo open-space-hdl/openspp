@@ -36,6 +36,7 @@ injector that sends packets built by the testbench. In the configuration `nchar_
 | `test_line_rate` (TC-CO-08) | 100 Octet Strings of 1024 bytes from A to B back-to-back without stalls | CO-SY-05 |
 | `test_reset` (TC-CO-09) | Reset of A after five packets with a continuity check at B: B indicates the discontinuity of the restarted counts and keeps delivering | CO-SY-06 |
 | `test_default_paths` (TC-CO-10) | Initial entries of an APID in both tables read through the register files; with the default paths an Octet String reaches B without configuration; without them it is rejected by A (no send path), then discarded by B (no receive path) and delivered once both paths are written; without address bytes (`nopath_w32`) a configured address length of 3 is limited to 0 and DEST_ADDR0 reads 0; `cptp_w32`, `cptp_w128`, `nopath_w32` | CO-IF-03, CO-SY-03, CO-SY-04 |
+| `test_idle` (TC-CO-11) | IEEE warnings enabled; after the table initialisation the cores stay idle for 20 us, then an Octet String, an Octet String with a last beat without bytes and an SDU without any byte (rejected, ERR_TX1) pass from A to B, and a packet with a last beat without bytes enters B from the link; the post check of the configuration fails on any numeric_std metavalue warning after the start marker; with the CPTP layer, without it and through the N-Char adapters | CO-IF-04 |
 
 ## 4. Seams of the integration
 
@@ -57,6 +58,7 @@ injector that sends packets built by the testbench. In the configuration `nchar_
 | --- | --- |
 | CO-IF-01 | TC-CO-01, TC-CO-07 |
 | CO-IF-02 | TC-CO-03, TC-CO-07 |
+| CO-IF-04 | TC-CO-11 |
 | CO-IF-03 | TC-CO-01, TC-CO-10 |
 | CO-SY-01 | TC-CO-01 |
 | CO-SY-02 | TC-CO-02 |

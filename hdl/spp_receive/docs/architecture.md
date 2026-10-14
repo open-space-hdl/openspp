@@ -44,7 +44,9 @@ plus one; the entry is then written back with the count as last count and the va
 entry is released unchanged.
 
 `SStream_s` reads the packet from the buffer and offers it to the user port of the job (valid of that port only).
-A dropped packet is skipped with `Out_Next`. A double error in any word sets the error flag with the last beat.
+A dropped packet is skipped with `Out_Next`. The byte enables and `Last` of the last word follow from the remaining
+byte count; a stored word without bytes after it (a last beat without byte enables at the input, D15) is skipped like a
+dropped packet. A double error in any word sets the error flag with the last beat.
 
 ## 4. Packet extraction (RE-3, `spp_receive_extraction`)
 

@@ -70,6 +70,13 @@ package spp_tb_stream_pkg is
             prob : real);
         impure function getStall (ch : natural) return real;
 
+        -- Source: every packet ends with an additional last beat without byte enables (AXI4-Stream null bytes); a
+        -- packet without bytes is then one such beat
+        procedure setNullTail (
+            ch     : natural;
+            enable : boolean);
+        impure function getNullTail (ch : natural) return boolean;
+
         procedure setUserMask (
             ch   : natural;
             mask : std_logic_vector);
@@ -161,6 +168,7 @@ package body spp_tb_stream_pkg is
         variable First_v   : TimeArray_t := (others => 0 ns);
         variable Last_v    : TimeArray_t := (others => 0 ns);
         variable Abort_v   : BoolArray_t := (others => false);
+        variable NullTl_v  : BoolArray_t := (others => false);
         variable MQueues_v : NatArray_t  := (others => 1);
         variable MOffset_v : NatArray_t  := (others => 0);
         variable MBytes_v  : NatArray_t  := (others => 0);
@@ -256,6 +264,18 @@ package body spp_tb_stream_pkg is
         impure function getStall (ch : natural) return real is
         begin
             return Stall_v(ch);
+        end function;
+
+        procedure setNullTail (
+            ch     : natural;
+            enable : boolean) is
+        begin
+            NullTl_v(ch) := enable;
+        end procedure;
+
+        impure function getNullTail (ch : natural) return boolean is
+        begin
+            return NullTl_v(ch);
         end function;
 
         procedure setUserMask (

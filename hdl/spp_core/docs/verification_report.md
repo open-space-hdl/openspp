@@ -2,11 +2,11 @@
 
 ## 1. Test results
 
-Run on 2026-10-10 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 4 "*spp_core*"`.
+Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 3 "*spp_core*"`.
 
 | Testbench | Tests | Passed |
 | --- | --- | --- |
-| `spp_core_tb` | 10 test cases in 25 configurations | 25 |
+| `spp_core_tb` | 11 test cases in 28 configurations | 28 |
 
 Line rate (TC-CO-08): 100 Octet Strings of 1024 bytes reached the receive port of B in 25897 cycles for 25900 link
 beats at 32 bits (the link is the limit) and in 6598 cycles for 6500 link beats at 128 bits (one cycle per packet).
@@ -31,3 +31,5 @@ Findings:
 | GHDL synthesis aborted on index ranges of packed port vectors selected by a variable port number | Port selection written as loops over the ports (`spp_send_assembly`) |
 | Under QuestaSim four core tests failed with stimulus and expected packets of different lengths: a random length drawn by an impure call inside the actual of an unconstrained array parameter was not evaluated exactly once | The lengths are drawn into a variable before the call; rule added to [conventions.md](../../../docs/conventions.md) |
 | Code coverage: CO-IF-03 with `TxPathDefault_g` and `RxPathDefault_g` false, and a core without Target SpaceWire Address bytes, were never simulated | New test TC-CO-10 with the configuration `nopath_w32`; `lint/synth_check.py` synthesizes the configuration |
+| A system with the core and `spp_nchar` behind a SpaceWire port logged about 27000 numeric_std metavalue warnings in 100 us: from the end of the table initialisation until the first received packet the demultiplexer and the packet assembly evaluated undefined registers; single warnings came from the header removal and insertion | The registers are reset (D16); TC-CO-11 runs idle cores with the IEEE warnings enabled and fails on any metavalue warning after the table initialisation |
+| The simulator options of `run.py` were applied after the module configurations and overrode their settings | `run.py` applies them first |

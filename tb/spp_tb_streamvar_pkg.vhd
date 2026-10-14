@@ -60,6 +60,11 @@ package spp_tb_streamvar_pkg is
         ch   : natural;
         prob : real);
 
+    -- Source of channel ch: every packet ends with an additional last beat without byte enables
+    procedure tbSetNullTail (
+        ch     : natural;
+        enable : boolean);
+
     -- Bits of TUser compared by the sink of channel ch
     procedure tbSetUserMask (
         ch   : natural;
@@ -129,6 +134,13 @@ package body spp_tb_streamvar_pkg is
         prob : real) is
     begin
         SppTbStore_v.setStall(ch, prob);
+    end procedure;
+
+    procedure tbSetNullTail (
+        ch     : natural;
+        enable : boolean) is
+    begin
+        SppTbStore_v.setNullTail(ch, enable);
     end procedure;
 
     procedure tbSetUserMask (

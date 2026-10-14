@@ -73,6 +73,10 @@ architecture rtl of spp_nchar is
         TxEnd    : std_logic;
         TxEep    : std_logic;
         TxMarker : std_logic;
+        -- Transmit: the packet ended with a last beat without bytes (marker after the converter is empty); a data
+        -- character of the packet was sent
+        TxNull   : std_logic;
+        TxData   : std_logic;
         -- Receive: the character held back until the next one shows whether it is the last
         RxHeld   : std_logic;
         RxData   : std_logic_vector(7 downto 0);
@@ -100,6 +104,7 @@ begin
     p_comb : process (all) is
         variable v        : TwoProcess_r;
         variable EepNow_v : std_logic;
+        variable Null_v   : std_logic;
     begin
         -- Hold variables stable
         v        := r;
@@ -108,12 +113,19 @@ begin
         -------------------------------------------------------------------------------------------
         -- Transmit: bytes of the beats, then the end of packet marker
         -------------------------------------------------------------------------------------------
-        -- A beat enters the converter only when no packet end waits for its marker
-        TxConv_InValid <= S_Link_Valid and not r.TxEnd;
-        S_Link_Ready   <= TxConv_InReady and not r.TxEnd;
-        if S_Link_Valid = '1' and TxConv_InReady = '1' and r.TxEnd = '0' and S_Link_Last = '1' then
-            v.TxEnd := '1';
-            v.TxEep := S_Link_User(LinkUserEep_c);
+        -- A beat enters the converter only when no packet end waits for its marker. A last beat without bytes
+        -- (AXI4-Stream null bytes) does not enter it: its marker follows the bytes of the earlier beats.
+        if S_Link_Last = '1' and S_Link_Keep = (S_Link_Keep'range => '0') then
+            Null_v := '1';
+        else
+            Null_v := '0';
+        end if;
+        TxConv_InValid <= S_Link_Valid and not r.TxEnd and not Null_v;
+        S_Link_Ready   <= (TxConv_InReady or Null_v) and not r.TxEnd;
+        if S_Link_Valid = '1' and (TxConv_InReady = '1' or Null_v = '1') and r.TxEnd = '0' and S_Link_Last = '1' then
+            v.TxEnd  := '1';
+            v.TxEep  := S_Link_User(LinkUserEep_c);
+            v.TxNull := Null_v;
         end if;
 
         if r.TxMarker = '1' then
@@ -125,6 +137,7 @@ begin
             if M_NChar_Ready = '1' then
                 v.TxMarker := '0';
                 v.TxEnd    := '0';
+                v.TxData   := '0';
             end if;
         else
             -- Data character
@@ -132,8 +145,21 @@ begin
             M_NChar_Data    <= TxConv_OutData;
             M_NChar_Last    <= '0';
             TxConv_OutReady <= M_NChar_Ready;
-            if TxConv_OutValid = '1' and M_NChar_Ready = '1' and TxConv_OutLast = '1' then
-                v.TxMarker := '1';
+            if TxConv_OutValid = '1' and M_NChar_Ready = '1' then
+                v.TxData := '1';
+                if TxConv_OutLast = '1' then
+                    v.TxMarker := '1';
+                end if;
+            end if;
+            -- Packet ended by a last beat without bytes: the marker once the converter is empty; a packet without
+            -- any byte sends nothing (no packet of zero length)
+            if r.TxNull = '1' and TxConv_OutValid = '0' then
+                v.TxNull := '0';
+                if r.TxData = '1' then
+                    v.TxMarker := '1';
+                else
+                    v.TxEnd := '0';
+                end if;
             end if;
         end if;
 
@@ -195,6 +221,8 @@ begin
                 r.TxEnd    <= '0';
                 r.TxEep    <= '0';
                 r.TxMarker <= '0';
+                r.TxNull   <= '0';
+                r.TxData   <= '0';
                 r.RxHeld   <= '0';
                 r.RxEep    <= '0';
             end if;

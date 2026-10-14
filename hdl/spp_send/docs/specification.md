@@ -20,6 +20,7 @@ destination of its managed data path to the transfer layer.
 | SE-IF-04 | The packet output shall be an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one Space Packet per packet of the stream; `TUser` bit 0 shall flag an error end of packet with the last beat and bits 4:1 shall hold the destination index of the APID. | none |
 | SE-IF-05 | Every rejected SDU shall be reported as a one-cycle event with its reason, its port and its APID; every Space Packet that leaves the output shall be signalled on `Sent`. | CPTP 5.5.2c |
 | SE-IF-06 | The reset input shall return the sending end from any state to an empty state and initialise the send APID table again. | none (D14) |
+| SE-IF-07 | A last beat without byte enables shall end the SDU, which consists of the bytes of the earlier beats; its Space Packet shall end with the beat of its last byte. | none (D15) |
 
 ### 2.2 Send buffers (SE-1)
 
@@ -28,7 +29,7 @@ destination of its managed data path to the transfer layer.
 | SE-BF-01 | Each port shall store complete SDUs in a buffer of `BufferBytes_g` bytes and pass them on in the order of submission. | SPP 3.2.2.1 |
 | SE-BF-02 | An SDU longer than the maximum packet length (less 6 bytes for an Octet String) or than the buffer shall be rejected (reason 0x01). | SPP 3.2.2.1, 3.2.3.1; CPTP 5.1.2, 5.5.2 |
 | SE-BF-03 | A Space Packet of the Packet Service shall be rejected when it is shorter than 7 bytes (0x02), when its Packet Version Number is not '000' (0x03), when its length is not its Packet Data Length plus 7 (0x04), or when it is an Idle Packet with the Secondary Header Flag set (0x05). | SPP 4.1.2.2, 4.1.3.2.2, 4.1.3.3.3.4, 4.1.3.5 |
-| SE-BF-04 | An Octet String shall be rejected when its APID is the Idle APID and its Secondary Header Indicator is set (0x05), or when it carries a Packet Name for a telemetry packet (0x06). | SPP 4.1.3.3.3.4, 4.1.3.4.3.2 |
+| SE-BF-04 | An Octet String shall be rejected when it has no byte (0x02), when its APID is the Idle APID and its Secondary Header Indicator is set (0x05), or when it carries a Packet Name for a telemetry packet (0x06). | SPP 3.2.3.1, 4.1.3.3.3.4, 4.1.3.4.3.2, 4.1.4.1.2 |
 
 ### 2.3 Multiplexer (SE-2)
 

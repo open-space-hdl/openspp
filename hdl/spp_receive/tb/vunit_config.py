@@ -12,6 +12,7 @@ TESTS = {
     "test_octet_delivery": [("single", SINGLE, w) for w in (8, 32, 128)],
     "test_packet_delivery": [("mixed", MIXED, w) for w in (24, 64)],
     "test_checks": [("single", SINGLE, w) for w in (8, 64)],
+    "test_null_bytes": [("single", SINGLE, w) for w in (8, 32, 128)] + [("mixed", MIXED, 64)],
     "test_routing": [("mixed", MIXED, 32)],
     "test_loss": [("single", SINGLE, 32)],
     "test_max_length": [("big", SINGLE, 32)],

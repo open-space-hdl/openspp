@@ -23,6 +23,7 @@ VUnit configurations `w8`, `w24`, `w32`, `w128` run every test with the link wid
 | `test_receive` (TC-AD-02) | N-Char packets of 0 to three beats of data characters and random lengths, EOP and EEP; packets without data discarded; random stalls | AD-IF-01, AD-RX-01 |
 | `test_back_to_back` (TC-AD-03) | Both directions at the same time without stalls, EOP and EEP | AD-TX-01, AD-RX-01 |
 | `test_reset` (TC-AD-04) | Reset with packets in both directions that the sinks do not accept; afterwards ten packets in each direction | AD-IF-02 |
+| `test_null_bytes` (TC-AD-05) | Link packets of 0 to three beats of bytes, each with an additional last beat without byte enables, EOP and EEP flagged on that beat, stalls on both sides: the marker follows the last byte, a packet without any byte produces no character, normal packets pass afterwards | AD-TX-02 |
 
 ## 4. Requirement coverage
 
@@ -31,4 +32,5 @@ VUnit configurations `w8`, `w24`, `w32`, `w128` run every test with the link wid
 | AD-IF-01 | TC-AD-01, TC-AD-02 |
 | AD-IF-02 | TC-AD-04 |
 | AD-TX-01 | TC-AD-01, TC-AD-03 |
+| AD-TX-02 | TC-AD-05 |
 | AD-RX-01 | TC-AD-02, TC-AD-03 |

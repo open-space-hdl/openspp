@@ -175,6 +175,7 @@ begin
         variable Field_v : std_logic_vector(13 downto 0);
         variable Entry_v : std_logic_vector(TxEntryWidth_c - 1 downto 0);
         variable Pdl_v   : unsigned(LengthWidth_c - 1 downto 0);
+        variable Final_v : std_logic;
     begin
         -- Hold variables stable
         v        := r;
@@ -305,6 +306,14 @@ begin
         -------------------------------------------------------------------------------------------
         P_v := r.SPort;
 
+        -- The beat with the last bytes of the SDU ends the packet; a stored beat after it carries no byte (a last beat
+        -- without byte enables) and is skipped
+        if r.SRem <= Bytes_c then
+            Final_v := '1';
+        else
+            Final_v := '0';
+        end if;
+
         case r.SState is
 
             when SIdle_s =>
@@ -341,6 +350,9 @@ begin
                         end if;
                         if Data_Last(P_v) = '1' then
                             v.SState := SIdle_s;
+                        elsif Final_v = '1' then
+                            -- Beats without bytes follow: skipped like a discarded SDU
+                            v.SDrop := '1';
                         end if;
                     end if;
                 end if;
@@ -354,14 +366,14 @@ begin
 
         -- Beat of the selected send buffer
         Ins_Data <= selData(Data_Data, P_v);
-        Ins_Last <= Data_Last(P_v);
+        Ins_Last <= Final_v;
         if r.SRem >= Bytes_c then
             Ins_Keep <= (others => '1');
         else
             Ins_Keep <= keepOfBytes(to_integer(r.SRem), Bytes_c);
         end if;
         -- A double error in any word of the SDU ends the packet with an EEP (D11), flagged with the last beat
-        Ins_User(LinkUserEep_c)  <= (r.SDed or Data_Ded(P_v)) and Data_Last(P_v);
+        Ins_User(LinkUserEep_c)  <= (r.SDed or Data_Ded(P_v)) and Final_v;
         Ins_User(LinkUserDest_t) <= r.SDest;
 
         -- Apply to record
@@ -383,7 +395,13 @@ begin
             r <= r_next;
             if Rst = '1' then
                 r.PState    <= PIdle_s;
+                r.PDesc     <= (others => '0');
+                r.PEntry    <= (others => '0');
+                r.JHdrLen   <= "000";
+                r.JLen      <= (others => '0');
                 r.SState    <= SIdle_s;
+                r.SHdrLen   <= "000";
+                r.SRem      <= (others => '0');
                 r.Err.Valid <= '0';
                 r.EccSec    <= "00";
                 r.EccDed    <= "00";

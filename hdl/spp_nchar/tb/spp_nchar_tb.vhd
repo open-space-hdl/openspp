@@ -179,6 +179,30 @@ begin
 
                 waitAll;
 
+            elsif run("test_null_bytes") then
+                -- A last link beat without bytes (AXI4-Stream null bytes) ends the packet: the marker (EOP or EEP, its
+                -- flag on that beat) follows the bytes of the earlier beats; a link packet without any byte sends
+                -- nothing
+                tbSetNullTail(ChTxSrc_c, true);
+                tbSetStall(ChTxSrc_c, 0.3);
+                tbSetStall(ChTxSnk_c, 0.3);
+
+                for i in 0 to 39 loop
+                    Len_v := i mod (3 * Bytes_c + 1);
+                    if Len_v = 0 then
+                        tbPush(ChTxSrc_c, tbPayload(0, Seed_v), tbLinkUser(0, 0), tbLinkUser(i mod 2, 0));
+                    else
+                        transmit(Len_v, i mod 2, Seed_v);
+                    end if;
+                    Seed_v := Seed_v + 1;
+                end loop;
+
+                waitAll;
+                -- Normal packets afterwards
+                tbSetNullTail(ChTxSrc_c, false);
+                transmit(Bytes_c + 1, 0, Seed_v);
+                waitAll;
+
             elsif run("test_back_to_back") then
 
                 -- Both directions at full rate: one character per clock cycle on the N-Char side

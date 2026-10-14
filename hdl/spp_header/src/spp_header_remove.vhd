@@ -276,6 +276,7 @@ begin
             if Rst = '1' then
                 r.State  <= Idle_s;
                 r.OValid <= '0';
+                r.OUser  <= (others => '0');
             end if;
         end if;
     end process;
