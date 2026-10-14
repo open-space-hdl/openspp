@@ -136,7 +136,7 @@ Four properties of the standards shape the architecture more than any single fea
 
 | Driver | Consequence |
 | --- | --- |
-| Use in space: single event upsets in buffers, tables and registers | SECDED ECC on every buffer and table, background scrubbing of the APID tables, state machines with a recovery state, an EDAC monitor in the register file (P5) |
+| Use in space: single event upsets in buffers, tables and registers | SECDED ECC on every buffer and table, background scrubbing of the APID tables, state machines with a recovery state, an EDAC monitor in the register file, the TMR of the synthesis tool for all other logic (P5) |
 | Throughput of multi-lane SpaceFibre links and of instrument data | Wide streams of up to 128 bits and one beat per clock cycle on every path (P6) |
 | Integration with SpaceWire and SpaceFibre ports | Link stream with an error end of packet flag, N-Char adapter for OpenWire, removable CPTP layer (P7) |
 | Many data sources and users in one node | A configurable number of user ports, a selectable multiplexing scheme and APID routing (P8) |
@@ -164,7 +164,7 @@ Four properties of the standards shape the architecture more than any single fea
 | P2 | Streams everywhere | Every data path between blocks is a valid / ready stream (Open Logic AXI4-Stream conventions) or a valid-only stream of events. |
 | P3 | One clock domain | All blocks run in `Clk`. Clock domain crossings of the SpaceWire or SpaceFibre port stay in the port. |
 | P4 | One management interface | All configuration, status and error information lives in one register file behind one AXI4-Lite port, generated from a single register description (VHDL package, documentation, C header). |
-| P5 | Fault tolerance by construction | All buffers and tables are `olo_ft_*` entities (SECDED ECC); the APID tables are scrubbed. State machines have a defined recovery state. ECC events are counted in the register file; a double error is contained and never delivered as valid data. |
+| P5 | Fault tolerance by construction | All buffers and tables are `olo_ft_*` entities (SECDED ECC); the APID tables are scrubbed. State machines have a defined recovery state. ECC events are counted in the register file; a double error is contained and never delivered as valid data. All other logic relies on the triple modular redundancy (TMR) of the synthesis tool ([user guide, section 6](user_guide.md#6-protection-scope)). |
 | P6 | Line rate | Every path accepts one beat per clock cycle while its output is ready. Header insertion and removal realign the bytes in place; there is no width conversion inside the core. |
 | P7 | Link format of the network ports | The link ports carry whole packets with `TKeep` and an error end of packet flag; an adapter converts them to the N-Char stream of OpenWire. |
 | P8 | User ports are service access points | One service type per port, fixed by a generic. The APID and the other parameters of the primitives travel in `TUser`. |
@@ -236,7 +236,7 @@ route by it when the CPTP layer is removed.
 | D11 | A double bit error in a send buffer ends the CPTP packet with an EEP; in the receive buffer it sets the error bit of the receive port. A double error in a descriptor or an APID table entry discards the SDU or packet. All are counted by the EDAC monitor. The EEP and error flags are defined with the last beat only | A corrupted packet is never delivered as valid (P5) |
 | D12 | Idle Packets (APID 2047) are accepted by the Packet Service only with the SHF '0' and by the Octet String Service only with the SHI '0'; received Idle Packets are discarded and counted unless the register file enables their delivery | SPP 4.1.3.3.3.4; Idle Packets carry no user data (SPP 4.1.4.3.4) |
 | D13 | Header insertion and removal shift the bytes of a stream by a number of bytes that is constant during a packet, in one stage that keeps one beat per clock | Line rate without width conversion (P6) |
-| D14 | The protocol state machines have a defined recovery state, without TMR: the `when others` branch leads to it from an illegal state where the synthesis tool implements the state machine safe, and the reset input restarts it from any state | Same as OpenWire and OpenRMAP; a corrupted packet is discarded by the checks of the receiving end |
+| D14 | The protocol state machines have a defined recovery state: the `when others` branch leads to it from an illegal state where the synthesis tool implements the state machine safe, and the reset input restarts it from any state. Their registers rely on the TMR of the synthesis tool like all other logic ([user guide, section 6](user_guide.md#6-protection-scope)) | Same as OpenWire and OpenRMAP; a corrupted packet is discarded by the checks of the receiving end |
 | D15 | A last beat without byte enables (AXI4-Stream null bytes) ends an SDU or a packet at every stream input of the core and of `spp_nchar`; the SDU or packet consists of the bytes of the earlier beats and leaves without that beat. An SDU without any byte is rejected (0x02), a received packet without any byte is discarded (0x14), and `spp_nchar` sends no marker for a link packet without bytes | AXI4-Stream sources such as width converters can end a packet with such a beat; a Space Packet carries at least one octet in its Packet Data Field (SPP 3.2.3.1, 4.1.4.1.2) |
 | D16 | Registers whose values enter arithmetic or conversions of the data paths are reset, so an idle core evaluates no undefined value | Simulation logs of systems with the core stay free of metavalue warnings; a core test checks it with the IEEE warnings enabled |
 
@@ -341,7 +341,7 @@ A module is one group of blocks with its own specification, verification plan, t
 | No insertion or removal of a header of N bytes on a stream with byte enables | CM-1 and CM-2 in the module `spp_header` |
 | No packet-atomic stream multiplexer | SE-2: arbiter with a packet lock |
 | `Out_Size` of `olo_ft_fifo_packet` counts words, not bytes | Descriptor FIFO with the byte length of every packet (SE-1, RE-1) |
-| No TMR helper for protocol state machines | Recovery state of every state machine (D14) |
+| No TMR helper for protocol state machines | Recovery state of every state machine (D14); the registers rely on the TMR of the synthesis tool ([user guide, section 6](user_guide.md#6-protection-scope)) |
 
 ## 9 Verification architecture
 
