@@ -95,6 +95,8 @@ begin
         variable Seed_v : natural := 1;
         variable Len_v  : natural;
         variable Eep_v  : natural;
+        variable TxCh_v : natural;
+        variable RxCh_v : natural;
 
         -- Packet of len bytes through the transmit direction: the N-Char packet is the bytes and the marker
         procedure transmit (
@@ -205,16 +207,33 @@ begin
 
             elsif run("test_back_to_back") then
 
-                -- Both directions at full rate: one character per clock cycle on the N-Char side
+                -- Both directions at the same time without stalls: the transmit direction needs at most one cycle per
+                -- packet beyond its characters (data and marker); the receive direction takes one character per cycle
+                SppTbStore_v.clearStats(ChTxSnk_c);
+                SppTbStore_v.clearStats(ChRxSnk_c);
+                TxCh_v := 0;
+                RxCh_v := 0;
+
                 for i in 0 to 49 loop
                     Eep_v  := i mod 5 / 4;
-                    transmit(Rand_v.rand(1, 64), Eep_v, Seed_v);
-                    receive(Rand_v.rand(1, 64), Eep_v, Seed_v + 1);
+                    Len_v  := Rand_v.rand(1, 64);
+                    TxCh_v := TxCh_v + Len_v + 1;
+                    transmit(Len_v, Eep_v, Seed_v);
+                    Len_v  := Rand_v.rand(1, 64);
+                    RxCh_v := RxCh_v + Len_v + 1;
+                    receive(Len_v, Eep_v, Seed_v + 1);
                     Seed_v := Seed_v + 2;
                 end loop;
 
-                SppTbStore_v.clearStats(ChTxSnk_c);
                 waitAll;
+                Len_v := (SppTbStore_v.lastTime(ChTxSnk_c) - SppTbStore_v.firstTime(ChTxSnk_c)) / ClkPeriod_c + 1;
+                log(ID_LOG_HDR, "transmit: " & to_string(TxCh_v) & " characters of 50 packets in " & to_string(Len_v) &
+                    " cycles");
+                check_value(Len_v <= TxCh_v + 50, ERROR, "transmit: at most one cycle per packet beyond its characters");
+                Len_v := (SppTbStore_v.lastTime(ChRxSnk_c) - SppTbStore_v.firstTime(ChRxSnk_c)) / ClkPeriod_c + 1;
+                log(ID_LOG_HDR, "receive: " & to_string(RxCh_v) & " characters of 50 packets in " & to_string(Len_v) &
+                    " cycles at the link output");
+                check_value(Len_v <= RxCh_v, ERROR, "receive: one character per cycle");
 
             elsif run("test_reset") then
                 -- Reset with packets in both directions not accepted by the sinks; afterwards normal operation

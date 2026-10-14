@@ -30,6 +30,7 @@ specified in the modules.
 | CO-SY-05 | Back-to-back Octet Strings of 1024 bytes shall pass from one core to another with at most three clock cycles per packet in addition to the link beats. | none (P6) |
 | CO-SY-06 | A reset of one core shall not disturb the other core; the receiving core shall indicate the discontinuity of the counts that restart at 0. | SPP 4.1.3.4.3.4 |
 | CO-SY-07 | Two cores shall exchange packets through two `spp_nchar` adapters and an N-Char stream in each direction, including the end of packet markers EOP and EEP. | CPTP 5.4.1.8 |
+| CO-SY-08 | A send port shall take one beat per clock cycle while its buffer has room. Back-to-back packets of `N` link beats shall leave the link output, be taken at the link input and be delivered at their receive port within max(`N` + 1, 5) clock cycles per packet, also when two send ports alternate. With fixed priority the lower send port shall be served first, with round robin the ports shall alternate. | none (P6) |
 
 ## 3. Configuration parameters
 

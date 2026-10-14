@@ -71,13 +71,13 @@ included).
 | Module | Requirements | Verified by a test case | Without a test case |
 | --- | --- | --- | --- |
 | `spp_apid_table` | 8 | 8 | - |
-| `spp_core` | 11 | 11 | - |
+| `spp_core` | 12 | 12 | - |
 | `spp_encapsulation` | 9 | 9 | - |
 | `spp_header` | 8 | 8 | - |
 | `spp_mib` | 14 | 14 | - |
-| `spp_nchar` | 5 | 5 | - |
+| `spp_nchar` | 6 | 6 | - |
 | `spp_pkg` | 5 | 5 | - |
 | `spp_receive` | 14 | 14 | - |
 | `spp_send` | 18 | 18 | - |
 
-Requirements: 92; without a test case: 0; test cases of the plans not run by a testbench: 0.
+Requirements: 94; without a test case: 0; test cases of the plans not run by a testbench: 0.

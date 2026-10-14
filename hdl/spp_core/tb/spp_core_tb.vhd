@@ -64,6 +64,11 @@ architecture sim of spp_core_tb is
 
     constant Bytes_c       : positive := DataWidth_g / 8;
     constant BufferBeats_c : positive := choose(DataWidth_g > 32, 1024, 4096);
+    -- Bytes of the CPTP header of a destination without Target SpaceWire Address
+    constant CptpBytes_c   : natural := 4 * boolean'pos(Encapsulation_g);
+    -- Lengths of the throughput test: Octet Strings and Space Packets
+    constant OctetLen_c    : NatArray_t := (1, 2, 61, 256, 1024);
+    constant PacketLen_c   : NatArray_t := (7, 8, 67, 262, 1030);
 
     signal Clk    : std_logic;
     signal RstA   : std_logic  := '1';
@@ -273,6 +278,112 @@ begin
             regRead(1, RegRxTableEntry_c);
             CntA_v := (others => 0);
             CntB_v := (others => 0);
+        end procedure;
+
+        -- Stream beats of n bytes
+        function beats (n : natural) return natural is
+        begin
+            return (n + Bytes_c - 1) / Bytes_c;
+        end function;
+
+        -- Upper bound of the clock cycles per packet of back-to-back packets of n link bytes (user guide, section 7):
+        -- one cycle more than the link beats, at least five
+        function cyclesBound (n : natural) return natural is
+        begin
+            return maximum(beats(n) + 1, 5);
+        end function;
+
+        -- Cycles from the first to the last beat recorded on a statistics channel
+        impure function window (ch : natural) return natural is
+        begin
+            return (SppTbStore_v.lastTime(ch) - SppTbStore_v.firstTime(ch)) / ClkPeriod_c + 1;
+        end function;
+
+        -- Checks the cycles from the first to the last beat of n back-to-back packets of lb link bytes recorded on a
+        -- statistics channel against the bound
+        procedure checkRate (
+            ch  : natural;
+            n   : natural;
+            lb  : natural;
+            msg : string) is
+            variable Cycles_v : natural;
+        begin
+            Cycles_v := window(ch);
+            log(ID_LOG_HDR, msg & ": " & to_string(Cycles_v) & " cycles for " & to_string(n) & " packets of " &
+                to_string(beats(lb)) & " link beats (bound " & to_string(cyclesBound(lb)) & " cycles per packet)");
+            check_value(SppTbStore_v.packets(ch), n, ERROR, msg & ": packets");
+            check_value(Cycles_v <= n * cyclesBound(lb), ERROR, msg & ": cycles beyond the bound");
+        end procedure;
+
+        -- Sending end of core A: n SDUs of len bytes on send port p are queued while the link is held, then sent
+        -- back-to-back into a link that drops them (always ready); lb link bytes per packet. The first seven SDUs fit
+        -- into the buffer: the send port takes them at one beat per cycle. The measurement of the link starts after
+        -- four packets, because the first ones leave the pipeline registers at once.
+        procedure sendRate (
+            p    : natural;
+            apid : natural;
+            len  : natural;
+            lb   : natural;
+            n    : natural) is
+            variable Target_v : natural;
+        begin
+            SppTbStore_v.clearStats(ChTxIn_c + p);
+            LinkAB.Sel <= '1';
+
+            for i in 0 to n - 1 loop
+                if Octet_c(p) = '1' then
+                    tbPush(ChTxA_c + p, tbPayload(len, i), tbTxUser(apid));
+                else
+                    tbPush(ChTxA_c + p, tbSpacePacket(0, 0, apid, 3, i, tbPayload(len - 6, i)), tbTxUser(0));
+                end if;
+                if i = 6 then
+                    wait for (7 * beats(len) + 50) * ClkPeriod_c;
+                    log(ID_LOG_HDR, "send port " & to_string(p) & " of A, " & to_string(len) & " bytes: " &
+                        to_string(SppTbStore_v.packets(ChTxIn_c + p)) & " SDUs taken in " &
+                        to_string(window(ChTxIn_c + p)) & " cycles");
+                    check_value(SppTbStore_v.packets(ChTxIn_c + p), 7, ERROR, "send port: SDUs taken");
+                    check_value(window(ChTxIn_c + p), 7 * beats(len), ERROR, "send port: one beat per cycle");
+                end if;
+            end loop;
+
+            -- The send buffer fills with TxMaxPackets_g (8) SDUs
+            wait for (8 * beats(len) + 100) * ClkPeriod_c;
+            Target_v          := StatAB.Dropped + n;
+            LinkAB.DropTarget <= Target_v;
+            LinkAB.Sel        <= '0';
+            wait until StatAB.Dropped = Target_v - n + 4 for 1 ms;
+            SppTbStore_v.clearStats(ChLinkOut_c);
+            wait until StatAB.Dropped = Target_v for 2 ms;
+            tbWaitEmpty(ChTxA_c + p, 1 ms, "send port " & to_string(p) & " of core A");
+            checkRate(ChLinkOut_c, n - 4, lb, "link output of A, send port " & to_string(p) & ", " & to_string(len) & " bytes");
+        end procedure;
+
+        -- Receiving end of core B: n Space Packets of len bytes (APID apid, routed to receive port q) injected
+        -- back-to-back into its link input
+        procedure receiveRate (
+            q    : natural;
+            apid : natural;
+            len  : natural;
+            n    : natural) is
+            constant Ua_c : natural := 16#77# * boolean'pos(Encapsulation_g);
+        begin
+            SppTbStore_v.clearStats(ChLinkIn_c + 1);
+            SppTbStore_v.clearStats(ChRxB_c + q);
+            LinkAB.Sel <= '1';
+
+            for i in 0 to n - 1 loop
+                inject(tbSpacePacket(0, 0, apid, 3, i, tbPayload(len - 6, i)));
+                if Octet_c(q) = '1' then
+                    tbPush(ChRxB_c + q, tbPayload(len - 6, i), tbRxUser(apid, 0, 0, 0, Ua_c));
+                else
+                    tbPush(ChRxB_c + q, tbSpacePacket(0, 0, apid, 3, i, tbPayload(len - 6, i)), tbRxUser(apid, 0, 0, 0, Ua_c));
+                end if;
+            end loop;
+
+            waitAll;
+            LinkAB.Sel <= '0';
+            checkRate(ChLinkIn_c + 1, n, len + CptpBytes_c, "link input of B, " & to_string(len) & " bytes");
+            checkRate(ChRxB_c + q, n, len + CptpBytes_c, "receive port " & to_string(q) & " of B, " & to_string(len) & " bytes");
         end procedure;
 
     -- Test sequence
@@ -548,6 +659,70 @@ begin
                 log(ID_LOG_HDR, "line rate: " & to_string(Cycles_v) & " cycles for " & to_string(Beats_v) &
                     " link beats of 100 packets");
                 check_value(Cycles_v <= Beats_v + 3 * 100, ERROR, "cycles per packet beyond its link beats");
+
+            elsif run("test_throughput") then
+
+                -- Sending end: Octet Strings on port 0, also to a destination with a Target SpaceWire Address of 4
+                -- bytes, and Space Packets on the Packet Service port 1
+                for i in OctetLen_c'range loop
+                    sendRate(0, 16#30#, OctetLen_c(i), OctetLen_c(i) + 6 + CptpBytes_c, 16);
+                end loop;
+
+                if Encapsulation_g then
+                    dest(0, 1, 16#40#, 16#31#, 4, x"04030201");
+                    txPath(0, 16#31#, 1);
+                    sendRate(0, 16#31#, 61, 61 + 6 + CptpBytes_c + 4, 16);
+                end if;
+
+                for i in PacketLen_c'range loop
+                    sendRate(1, 16#20#, PacketLen_c(i), PacketLen_c(i) + CptpBytes_c, 16);
+                end loop;
+
+                -- Receiving end: Space Packets to the Octet String port 0 and to the Packet Service port 1
+                rxPath(1, 16#21#, 1);
+
+                for i in PacketLen_c'range loop
+                    receiveRate(0, 16#22#, PacketLen_c(i), 16);
+                    receiveRate(1, 16#21#, PacketLen_c(i), 16);
+                end loop;
+
+                -- Two send ports with queued SDUs: port 0 fills its buffer first, so that the first two packets are
+                -- decided for it, then port 2. Fixed priority sends all SDUs of port 0 before port 2, round robin
+                -- alternates the ports from the third packet; both keep the bound
+                rxPath(1, 16#42#, 2);
+
+                for scheme in 0 to 1 loop
+                    regWrite(0, RegConfig_c, word(16#FE00# + scheme));
+                    LinkAB.Sel <= '1';
+
+                    for i in 0 to 11 loop
+                        octet(0, 0, 0, 16#40#, tbPayload(61, i));
+                    end loop;
+
+                    wait for (8 * beats(61) + 100) * ClkPeriod_c;
+
+                    for i in 0 to 11 loop
+                        octet(0, 2, 2, 16#42#, tbPayload(61, 50 + i));
+                    end loop;
+
+                    wait for (8 * beats(61) + 100) * ClkPeriod_c;
+                    SppTbStore_v.clearStats(ChLinkOut_c);
+                    SppTbStore_v.clearStats(ChRxB_c);
+                    SppTbStore_v.clearStats(ChRxB_c + 2);
+                    LinkAB.Sel <= '0';
+                    waitAll;
+                    Len_v      := 61 + 6 + CptpBytes_c;
+                    checkRate(ChLinkOut_c, 24, Len_v, "link output of A, ports 0 and 2, scheme " & to_string(scheme));
+                    if scheme = 0 then
+                        check_value(SppTbStore_v.firstTime(ChRxB_c + 2) > SppTbStore_v.lastTime(ChRxB_c), ERROR,
+                                    "fixed priority: all SDUs of port 0 first");
+                    else
+                        check_value(SppTbStore_v.firstTime(ChRxB_c + 2) - SppTbStore_v.firstTime(ChRxB_c) <=
+                                    3 * cyclesBound(Len_v) * ClkPeriod_c, ERROR, "round robin: port 2 from the third packet");
+                        check_value(abs (SppTbStore_v.lastTime(ChRxB_c + 2) - SppTbStore_v.lastTime(ChRxB_c)) <=
+                                    3 * cyclesBound(Len_v) * ClkPeriod_c, ERROR, "round robin: the ports alternate");
+                    end if;
+                end loop;
 
             elsif run("test_reset") then
                 -- Reset of core A: its counts restart at 0, core B reports the discontinuity and keeps working

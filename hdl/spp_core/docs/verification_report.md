@@ -6,10 +6,30 @@ Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `p
 
 | Testbench | Tests | Passed |
 | --- | --- | --- |
-| `spp_core_tb` | 11 test cases in 28 configurations | 28 |
+| `spp_core_tb` | 12 test cases in 31 configurations | 31 |
 
 Line rate (TC-CO-08): 100 Octet Strings of 1024 bytes reached the receive port of B in 25897 cycles for 25900 link
 beats at 32 bits (the link is the limit) and in 6598 cycles for 6500 link beats at 128 bits (one cycle per packet).
+
+Throughput (TC-CO-12): every send port took its SDUs at one beat per cycle (7 SDUs of 1024 bytes in 1792 cycles at
+32 bits). Cycles per packet in the steady state, from the windows of 12 sent and 16 received packets:
+
+| Packets | 32 bits CPTP: `N`, `M_Link`, `M_Rx` | 64 bits without CPTP | 128 bits CPTP |
+| --- | --- | --- | --- |
+| Octet Strings of 1 byte | 3, 5, 5 | 1, 5, 5 | 1, 5, 5 |
+| Octet Strings of 61 bytes | 18, 19, 18 | 9, 9, 10 | 5, 5, 6 |
+| Octet Strings of 61 bytes, four address bytes | 19, 20, - | - | 5, 5, - |
+| Octet Strings of 256 bytes | 67, 67, 67 | 33, 33, 34 | 17, 17, 18 |
+| Octet Strings of 1024 bytes | 259, 259, 259 | 129, 129, 130 | 65, 65, 66 |
+| Space Packets of 7 bytes (Packet Service) | 3, 5, 5 | 1, 5, 5 | 1, 5, 5 |
+| Space Packets of 67 bytes (Packet Service) | 18, 19, 18 | 9, 10, 10 | 5, 6, 6 |
+| Space Packets of 262 bytes (Packet Service) | 67, 68, 67 | 33, 34, 34 | 17, 18, 18 |
+| Space Packets of 1030 bytes (Packet Service) | 259, 260, 259 | 129, 130, 130 | 65, 66, 66 |
+| Two ports alternating, Octet Strings of 61 bytes | 18, 19, - | 9, 9, - | 5, 6 (receiving end), - |
+
+`M_Rx` is measured with Space Packets of the same length injected into B (the `M_Rx` column of an Octet String row is
+the Space Packet of that Octet String delivered at an Octet String port). Every value equals the model of the user
+guide (section 7): max(`N` + `e`, 5) at the sending end and max(ceil(`Lsp` / B) + 1, 5) at the receiving end.
 
 `python lint/synth_check.py` synthesizes `spp_core` with GHDL in five configurations (default; without the CPTP
 layer; without address bytes and default paths; three ports of both services at 128 bits with four destinations;
@@ -33,4 +53,5 @@ Findings:
 | Code coverage: CO-IF-03 with `TxPathDefault_g` and `RxPathDefault_g` false, and a core without Target SpaceWire Address bytes, were never simulated | New test TC-CO-10 with the configuration `nopath_w32`; `lint/synth_check.py` synthesizes the configuration |
 | A system with the core and `spp_nchar` behind a SpaceWire port logged about 27000 numeric_std metavalue warnings in 100 us: from the end of the table initialisation until the first received packet the demultiplexer and the packet assembly evaluated undefined registers; single warnings came from the header removal and insertion | The registers are reset (D16); TC-CO-11 runs idle cores with the IEEE warnings enabled and fails on any metavalue warning after the table initialisation |
 | The simulator options of `run.py` were applied after the module configurations and overrode their settings | `run.py` applies them first |
+| The user guide stated that the sending end adds no cycle per packet. TC-CO-12 measured one cycle per packet for Space Packets of the Packet Service and for Octet Strings whose header insertions end without an extra beat (61 bytes at 32 bits: 19 cycles for 18 link beats) | User guide corrected; section 7 gives the cycles per packet with the condition, TC-CO-12 checks the bound max(`N` + 1, 5) |
 | The post check of TC-CO-11 only looked for the absence of metavalue warnings: with the IEEE warnings disabled (as with the earlier order of the simulator options) the test passed without checking anything | Positive control: the testbench raises one numeric_std warning itself before the marker and the post check requires it; with `disable_ieee_warnings` set to true for the test, all three configurations fail in GHDL and in QuestaSim |

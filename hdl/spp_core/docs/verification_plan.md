@@ -13,7 +13,7 @@ injector that sends packets built by the testbench. In the configuration `nchar_
 
 | Testbench | Harness | DUT and environment |
 | --- | --- | --- |
-| `spp_core_tb` | `spp_core_th` | Two `spp_core` at 100 MHz, link models `spp_core_tb_link`, stream sources and sinks on all user ports, injectors into both link inputs, AXI4-Lite master VVCs, monitors of `Err_*` and `Irq` |
+| `spp_core_tb` | `spp_core_th` | Two `spp_core` at 100 MHz, link models `spp_core_tb_link`, stream sources and sinks on all user ports, injectors into both link inputs, AXI4-Lite master VVCs, monitors of `Err_*` and `Irq`, statistics of the link ports and of the send ports (beats and packets with their times) |
 
 | Configuration | Generics |
 | --- | --- |
@@ -37,6 +37,7 @@ injector that sends packets built by the testbench. In the configuration `nchar_
 | `test_reset` (TC-CO-09) | Reset of A after five packets with a continuity check at B: B indicates the discontinuity of the restarted counts and keeps delivering | CO-SY-06 |
 | `test_default_paths` (TC-CO-10) | Initial entries of an APID in both tables read through the register files; with the default paths an Octet String reaches B without configuration; without them it is rejected by A (no send path), then discarded by B (no receive path) and delivered once both paths are written; without address bytes (`nopath_w32`) a configured address length of 3 is limited to 0 and DEST_ADDR0 reads 0; `cptp_w32`, `cptp_w128`, `nopath_w32` | CO-IF-03, CO-SY-03, CO-SY-04 |
 | `test_idle` (TC-CO-11) | IEEE warnings enabled; after the table initialisation the cores stay idle for 20 us, then an Octet String, an Octet String with a last beat without bytes and an SDU without any byte (rejected, ERR_TX1) pass from A to B, and a packet with a last beat without bytes enters B from the link; the post check of the configuration fails on any numeric_std metavalue warning after the start marker. Positive control: before the marker the testbench raises one numeric_std warning itself (`to_integer` of an undefined vector), and the post check fails when it is missing, so the test cannot pass with the IEEE warnings disabled; with the CPTP layer, without it and through the N-Char adapters | CO-IF-04 |
+| `test_throughput` (TC-CO-12) | Statistics of the link ports and of the send ports of A record every beat with its time. Sending end: 16 SDUs per case (Octet Strings of 1, 2, 61, 256 and 1024 bytes on port 0, 61 bytes to a destination with four address bytes, Space Packets of 7, 8, 67, 262 and 1030 bytes on the Packet Service port 1) queued while the link is held: the first seven are taken at one beat per cycle; then the link drops the packets (always ready) and packets 5 to 16 must leave within max(`N` + 1, 5) cycles each. Receiving end: 16 Space Packets per length injected back-to-back into B for the Octet String port 0 and the Packet Service port 1, the link input and the receive port within the same bound. Two send ports with queued SDUs of 61 bytes delivered to B: fixed priority sends all SDUs of port 0 before port 2, round robin alternates them, both within the bound; `cptp_w32`, `cptp_w128`, `plain_w64` | CO-SY-08 |
 
 ## 4. Seams of the integration
 
@@ -67,3 +68,4 @@ injector that sends packets built by the testbench. In the configuration `nchar_
 | CO-SY-05 | TC-CO-08 |
 | CO-SY-06 | TC-CO-09 |
 | CO-SY-07 | TC-CO-01, TC-CO-05 |
+| CO-SY-08 | TC-CO-12 |

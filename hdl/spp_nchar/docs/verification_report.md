@@ -2,11 +2,15 @@
 
 ## 1. Test results
 
-Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 3 "*spp_nchar*"`.
+Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 2 "*spp_nchar*"`.
 
 | Testbench | Tests | Passed |
 | --- | --- | --- |
 | `spp_nchar_tb` | 5 test cases in 4 configurations (link widths 8, 24, 32, 128 bits): 20 | 20 |
+
+Rate (TC-AD-03): the transmit direction output the 1731 characters of 50 packets in 1780 cycles at 128 bits, 1751 in
+1800 at 24 bits, 1750 in 1799 at 32 bits (one cycle between two packets) and 1638 in 1638 at 8 bits; the link output
+of the receive direction needed no more cycles than characters at every width.
 
 The core tests TC-CO-01, TC-CO-03 and TC-CO-05 pass with both links through two adapters (configuration `nchar_w32`).
 
