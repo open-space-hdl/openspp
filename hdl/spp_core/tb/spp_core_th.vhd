@@ -453,6 +453,11 @@ begin
         -- Adapter k sends the packets of the link model toward the other core as N-Char characters and
         -- delivers the characters of the other adapter to core k
         g_adapter : for k in 0 to NumCores_c - 1 generate
+            -- A signal, not an expression, as the actual of the port (docs/conventions.md)
+            signal LinkUser : std_logic_vector(LinkUserWidth_c - 1 downto 0);
+        begin
+
+            LinkUser <= "0000" & LmUser(1 - k);
 
             i_nchar : entity work.spp_nchar
                 generic map (
@@ -466,7 +471,7 @@ begin
                     S_Link_Data   => LmData(1 - k),
                     S_Link_Keep   => LmKeep(1 - k),
                     S_Link_Last   => LmLast(1 - k),
-                    S_Link_User   => "0000" & LmUser(1 - k),
+                    S_Link_User   => LinkUser,
                     M_NChar_Valid => NcValid(k),
                     M_NChar_Ready => NcReady(k),
                     M_NChar_Data  => NcData(k),
