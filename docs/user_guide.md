@@ -10,7 +10,7 @@ statement for CCSDS 133.0-B-2 (Annex A, PICS proforma) and ECSS-E-ST-50-53C. The
 | Library | Sources | Order |
 | --- | --- | --- |
 | `olo` | Open Logic areas `base`, `axi` and `ft` of the submodule `open-logic/` | `open-logic/compile_order.txt` |
-| `openspp` | `hdl/<module>/src/*.vhd` of every module of `component_list.txt` | Modules in the order of `component_list.txt`; within a module packages first (`spp_pkg.vhd`, `spp_regs_pkg.vhd`) |
+| `openspp` | `hdl/<module>/src/*.vhd` of every module of `component_list.txt` | `compile_order.txt`: the modules in the order of `component_list.txt`, within a module packages first |
 
 All sources are VHDL-2008 and contain no vendor primitive. `spp_nchar` is needed only to connect a SpaceWire port with
 an N-Char stream, such as the OpenWire core.
@@ -276,4 +276,5 @@ python lint/lint.py                         # VSG
 python lint/synth_check.py                  # synthesizability of five core configurations with GHDL
 python tools/compliance.py --check          # traceability of SPP and CPTP
 python tools/regmap.py --check              # generated register map up to date
+python run.py --compile-order               # compile_order.txt of the synthesis sources
 ```

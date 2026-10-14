@@ -11,6 +11,9 @@ library `openspp`, then runs all testbenches.
 GHDL is the default simulator. `--questa` selects QuestaSim; `--questa --coverage` collects the code coverage
 (statements, branches, conditions, expressions, state machines) of the OpenSPP sources and merges it into
 coverage/coverage.ucdb with the text report coverage/coverage_report.txt.
+
+`--compile-order` writes compile_order.txt with the synthesis sources of the library `openspp` in compile order and
+exits without simulating.
 """
 
 import importlib.util
@@ -25,6 +28,9 @@ ROOT = Path(__file__).resolve().parent
 QUESTA_DEFAULT_PATH = r"D:\Microchip\Libero_SoC_2025.2\Libero_SoC\QuestaSim_Pro\win64"
 
 # Simulator selection must happen before VUnit parses the command line
+COMPILE_ORDER = "--compile-order" in sys.argv
+if COMPILE_ORDER:
+    sys.argv.remove("--compile-order")
 COVERAGE = "--coverage" in sys.argv
 if COVERAGE:
     sys.argv.remove("--coverage")
@@ -132,7 +138,35 @@ def merge_coverage(results):
                    check=False)
 
 
+def write_compile_order():
+    """Writes compile_order.txt: the synthesis sources of the library openspp (hdl/<module>/src/ of every module of
+    component_list.txt), one path per line relative to the repository root. The modules keep the order of
+    component_list.txt, the files of a module the order of the VUnit dependency scan; the scan also checks that no
+    file depends on a later one. Open Logic is a separate library and only referenced, so the order does not depend
+    on the submodules."""
+    vu = VUnit.from_argv(argv=[])
+    vu.add_external_library("olo", ROOT / "open-logic")
+    lib = vu.add_library("openspp")
+    modules = read_component_list()
+    for module in modules:
+        lib.add_source_files(sorted((ROOT / module / "src").glob("*.vhd")))
+
+    def rel(source):
+        return Path(source.name).resolve().relative_to(ROOT).as_posix()
+
+    scan = [rel(source) for source in vu.get_compile_order() if source.library.name == "openspp"]
+    order = sorted(scan, key=lambda path: (modules.index(Path(path).parents[1].as_posix()), scan.index(path)))
+    for source in lib.get_source_files():
+        later = [rel(dep) for dep in vu.get_compile_order([source]) if order.index(rel(dep)) > order.index(rel(source))]
+        if later:
+            sys.exit(f"{rel(source)} depends on {', '.join(later)}: correct the order of component_list.txt")
+    (ROOT / "compile_order.txt").write_text("".join(path + "\n" for path in order), encoding="utf-8", newline="\n")
+
+
 def main():
+    if COMPILE_ORDER:
+        write_compile_order()
+        return
     vu = VUnit.from_argv()
     vu.add_vhdl_builtins()
     add_open_logic(vu)
