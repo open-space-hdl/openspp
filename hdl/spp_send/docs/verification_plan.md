@@ -41,6 +41,7 @@ Simulator: GHDL; QuestaSim for code coverage.
 | `test_ecc` (TC-SE-12) | Single error in the data buffer corrected; double error ends the packet with EEP; double error in a descriptor rejects the SDU (0x08); single error in the table corrected; double error in the table rejects the SDU, a write repairs it; a double error in the only (last) word of an SDU ends it with EEP | SE-AS-05, SE-IF-05 |
 | `test_reset` (TC-SE-13) | Reset while a packet is sent and further SDUs are buffered: afterwards the table is initialised again and the counts start at 0 | SE-IF-06 |
 | `test_random` (TC-SE-14) | 300 random SDUs on three ports (both services, random lengths up to 400 bytes, APIDs, parameters), random stalls, switching the scheme every 50 SDUs; widths 16 and 128 | SE-IF-01, SE-IF-02, SE-IF-03, SE-BF-01, SE-MX-01, SE-AS-01, SE-AS-02, SE-AS-03 |
+| `test_null_bytes` (TC-SE-15) | Every SDU ends with an additional last beat without byte enables: an Octet String without any byte is rejected (0x02) and nothing is sent; Octet Strings of 1 byte, one beat, one beat plus one byte, two beats and one byte less than a beat leave as complete Space Packets without a beat without bytes; with the Packet Service a Space Packet without any byte is rejected (0x02) and Space Packets that fill or do not fill their last beat pass intact; widths 8, 32, 128 and 64 (three ports) | SE-IF-07, SE-BF-03, SE-BF-04 |
 
 ## 4. Requirement coverage
 
@@ -51,10 +52,11 @@ Simulator: GHDL; QuestaSim for code coverage.
 | SE-IF-04 | TC-SE-01 |
 | SE-IF-05 | TC-SE-02, TC-SE-05, TC-SE-09, TC-SE-12 |
 | SE-IF-06 | TC-SE-13 |
+| SE-IF-07 | TC-SE-15 |
 | SE-BF-01 | TC-SE-01, TC-SE-14 |
 | SE-BF-02 | TC-SE-05, TC-SE-06, TC-SE-07 |
-| SE-BF-03 | TC-SE-05 |
-| SE-BF-04 | TC-SE-02, TC-SE-08 |
+| SE-BF-03 | TC-SE-05, TC-SE-15 |
+| SE-BF-04 | TC-SE-02, TC-SE-08, TC-SE-15 |
 | SE-MX-01 | TC-SE-10, TC-SE-14 |
 | SE-AS-01 | TC-SE-01, TC-SE-07, TC-SE-14 |
 | SE-AS-02 | TC-SE-01, TC-SE-02, TC-SE-03, TC-SE-14 |

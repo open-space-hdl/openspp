@@ -338,6 +338,58 @@ begin
                 check_value(Errors.Total, 6, ERROR, "error events");
                 check_value(Sent, 5, ERROR, "packets sent");
 
+            elsif run("test_null_bytes") then
+                -- A last beat without byte enables (AXI4-Stream null bytes) ends an SDU; the packet ends with the
+                -- last byte before it. An SDU without any byte is rejected (SPP 3.2.3.1, 4.1.4.1.2).
+                tbSetNullTail(0, true);
+                sendRejected(0, tbPayload(0, 1), tbTxUser(7));
+                waitSent;
+                checkErrors(ErrTxShort_c, 1, "Octet String without bytes rejected");
+                checkLast(ErrTxShort_c, 0, 7);
+                check_value(Sent, 0, ERROR, "nothing sent for an Octet String without bytes");
+
+                for i in 0 to 5 loop
+
+                    case i is
+                        when 0 => Len_v := 1;
+                        when 1 => Len_v := Bytes_c;
+                        when 2 => Len_v := Bytes_c + 1;
+                        when 3 => Len_v := 2 * Bytes_c;
+                        when 4 => Len_v := maximum(1, Bytes_c - 1);
+                        when others => Len_v := 37;
+                    end case;
+
+                    sendOctet(0, 7, tbPayload(Len_v, i + 2), Cnt_v(7));
+                    Cnt_v(7) := Cnt_v(7) + 1;
+                end loop;
+
+                waitSent;
+                check_value(Sent, 6, ERROR, "Octet Strings with a last beat without bytes sent");
+                -- The port works on as before without the additional beat
+                tbSetNullTail(0, false);
+                sendOctet(0, 7, tbPayload(3, 9), Cnt_v(7));
+                Cnt_v(7) := Cnt_v(7) + 1;
+                waitSent;
+                Errs_v   := 1;
+                Len_v    := 7;
+                if NumTx_g > 1 then
+                    -- Packet Service on port 1: a Space Packet without bytes is rejected as shorter than 7 bytes;
+                    -- Space Packets with a last beat without bytes pass intact (also when they fill their beats)
+                    tbSetNullTail(1, true);
+                    sendRejected(1, tbPayload(0, 1), tbTxUser(0));
+                    waitSent;
+                    checkErrors(ErrTxShort_c, 2, "Space Packet without bytes rejected");
+                    checkLast(ErrTxShort_c, 1, 0);
+                    sendPacket(1, tbSpacePacket(0, 0, 1000, 3, 0, tbPayload(1, 3)));
+                    sendPacket(1, tbSpacePacket(0, 0, 1000, 3, 1, tbPayload(2 * Bytes_c - 6, 4)));
+                    waitSent;
+                    tbSetNullTail(1, false);
+                    Errs_v := 2;
+                    Len_v  := 9;
+                end if;
+                check_value(Errors.Total, Errs_v, ERROR, "error events");
+                check_value(Sent, Len_v, ERROR, "packets sent");
+
             elsif run("test_oversize") then
                 -- Maximum packet length 100: Octet Strings of up to 94 bytes; the buffer of 4096 bytes limits the
                 -- Octet String at the maximum packet length of 65542

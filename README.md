@@ -17,7 +17,7 @@ of [Open Logic](https://github.com/open-logic/open-logic) (SECDED ECC, scrubbing
 and has no flight heritage; see [what the levels mean](https://openspacehdl.org/trl/) and the next steps in the
 [roadmap](docs/roadmap.md#technology-readiness).
 
-The core is complete and verified in simulation (GHDL and QuestaSim, 64 test cases at unit and core level in 145 test
+The core is complete and verified in simulation (GHDL and QuestaSim, 68 test cases at unit and core level in 160 test
 runs over stream widths of 8 to 128 bits, branch and condition coverage closed, the remaining misses justified in
 [docs/coverage.md](docs/coverage.md)); the
 [compliance matrix](docs/compliance.md) traces every clause of CCSDS 133.0-B-2 and ECSS-E-ST-50-53C in scope to its

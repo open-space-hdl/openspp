@@ -34,6 +34,7 @@ checked through the counters of the error events, their reason, port and APID.
 | `test_ecc` (TC-RE-08) | Single error in the data buffer corrected; double error sets the error flag; double error in a descriptor and in a table entry discards the packet (0x1B); single error in the table corrected; a write repairs the entry; a double error in the last word of a packet without an earlier one sets the error flag (one word at 64 bits); widths 32, 64 | RE-FT-01 |
 | `test_reset` (TC-RE-09) | Reset while packets are stored and delivered: afterwards the table is initialised again and packets are delivered | RE-IF-05 |
 | `test_random` (TC-RE-10) | 300 random packets to three ports, both services, with discarded packets (EEP, length) interleaved, consecutive counts on a checked APID, random stalls; widths 16 and 128 | RE-IF-01, RE-IF-02, RE-IF-03, RE-RC-01, RE-RC-02, RE-DM-01, RE-DM-02, RE-DM-03, RE-EX-01 |
+| `test_null_bytes` (TC-RE-11) | Every received packet ends with an additional last beat without byte enables: a packet without any byte is discarded as shorter than 7 bytes (0x14); packets whose data fill or do not fill their last beat are delivered on both services without a beat without bytes; widths 8, 32, 128 and 64 (three ports) | RE-IF-06, RE-RC-02 |
 
 ## 4. Requirement coverage
 
@@ -43,8 +44,9 @@ checked through the counters of the error events, their reason, port and APID.
 | RE-IF-02 | TC-RE-01, TC-RE-02, TC-RE-10 |
 | RE-IF-04 | TC-RE-03, TC-RE-04 |
 | RE-IF-05 | TC-RE-09 |
+| RE-IF-06 | TC-RE-11 |
 | RE-RC-01 | TC-RE-01, TC-RE-03, TC-RE-10 |
-| RE-RC-02 | TC-RE-03, TC-RE-06, TC-RE-10 |
+| RE-RC-02 | TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11 |
 | RE-DM-01 | TC-RE-01, TC-RE-02, TC-RE-04, TC-RE-10 |
 | RE-DM-02 | TC-RE-02, TC-RE-04, TC-RE-10 |
 | RE-DM-03 | TC-RE-05, TC-RE-10 |

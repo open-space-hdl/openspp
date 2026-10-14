@@ -294,7 +294,7 @@ Address 0x0A0: SDUs rejected by the sending end (1).
 
 | Bits | Field | Access | Reset | Description |
 | --- | --- | --- | --- | --- |
-| 31:16 | SHORT | RC | 0 | Space Packet shorter than 7 bytes (0x02) |
+| 31:16 | SHORT | RC | 0 | Space Packet shorter than 7 bytes or Octet String without any byte (0x02) |
 | 15:0 | OVERSIZE | RC | 0 | Longer than the maximum packet length or the buffer (0x01) |
 
 ### ERR_TX2

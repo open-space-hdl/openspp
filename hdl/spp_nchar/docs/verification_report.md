@@ -2,11 +2,11 @@
 
 ## 1. Test results
 
-Run on 2026-10-10 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 4 "*spp_nchar*"`.
+Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 3 "*spp_nchar*"`.
 
 | Testbench | Tests | Passed |
 | --- | --- | --- |
-| `spp_nchar_tb` | 4 test cases in 4 configurations (link widths 8, 24, 32, 128 bits): 16 | 16 |
+| `spp_nchar_tb` | 5 test cases in 4 configurations (link widths 8, 24, 32, 128 bits): 20 | 20 |
 
 The core tests TC-CO-01, TC-CO-03 and TC-CO-05 pass with both links through two adapters (configuration `nchar_w32`).
 
@@ -23,3 +23,4 @@ Findings:
 | Finding | Resolution |
 | --- | --- |
 | At 8 bits `olo_base_wconv_n2xn` is a direct connection, so the last beat left the converter in the cycle in which the EEP flag was stored, without the flag | At 8 bits the flag is taken from the marker in the same cycle |
+| A link packet that ended with a beat without byte enables blocked the transmit direction: `olo_base_wconv_xn2n` drops `In_Last` of a beat without word enables, so the marker never followed | The beat bypasses the converter and the marker follows once the converter is empty; a link packet without any byte sends nothing (AD-TX-02, D15, TC-AD-05) |

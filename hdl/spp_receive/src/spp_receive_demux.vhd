@@ -123,6 +123,7 @@ begin
         variable Port_v  : natural range 0 to 15;
         variable Next_v  : unsigned(13 downto 0);
         variable Ready_v : std_logic;
+        variable Final_v : std_logic;
     begin
         -- Hold variables stable
         v        := r;
@@ -251,6 +252,14 @@ begin
         -------------------------------------------------------------------------------------------
         Ready_v := Out_Ready(r.SPort);
 
+        -- The beat with the last bytes of the packet ends it at the user port; a stored beat after it carries no byte
+        -- (a last beat without byte enables) and is skipped
+        if r.SRem <= Bytes_c then
+            Final_v := '1';
+        else
+            Final_v := '0';
+        end if;
+
         case r.SState is
 
             when SIdle_s =>
@@ -285,6 +294,9 @@ begin
                         end if;
                         if Data_Last = '1' then
                             v.SState := SIdle_s;
+                        elsif Final_v = '1' then
+                            -- Beats without bytes follow: skipped like a discarded packet
+                            v.SDrop := '1';
                         end if;
                     end if;
                 end if;
@@ -298,7 +310,7 @@ begin
 
         -- Beat of the packet in transfer
         Out_Data <= Data_Data;
-        Out_Last <= Data_Last;
+        Out_Last <= Final_v;
         if r.SRem >= Bytes_c then
             Out_Keep <= (others => '1');
         else
@@ -306,7 +318,7 @@ begin
         end if;
         Out_User <= r.SUser;
         -- A double error in any word of the packet is flagged with the last beat (D11)
-        Out_User(RxUserError_c) <= (r.SDed or Data_Ded) and Data_Last;
+        Out_User(RxUserError_c) <= (r.SDed or Data_Ded) and Final_v;
 
         -- Apply to record
         r_next <= v;
@@ -323,8 +335,12 @@ begin
             r <= r_next;
             if Rst = '1' then
                 r.PState    <= PIdle_s;
+                r.PDesc     <= (others => '0');
+                r.PEntry    <= (others => '0');
+                r.JLen      <= (others => '0');
                 r.SState    <= SIdle_s;
                 r.SPort     <= 0;
+                r.SRem      <= (others => '0');
                 r.Err.Valid <= '0';
                 r.Loss      <= '0';
                 r.EccSec    <= "00";

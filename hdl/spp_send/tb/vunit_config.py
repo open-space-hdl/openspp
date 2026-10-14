@@ -14,6 +14,7 @@ TESTS = {
     "test_count_wrap": [("single", SINGLE, 32)],
     "test_packet_service": [("mixed", MIXED, w) for w in (24, 64)],
     "test_packet_checks": [("mixed", MIXED, w) for w in (8, 64)],
+    "test_null_bytes": [("single", SINGLE, w) for w in (8, 32, 128)] + [("mixed", MIXED, 64)],
     "test_oversize": [("single", SINGLE, 32)],
     "test_max_length": [("big", SINGLE, 32), ("big", MIXED, 64)],
     "test_idle": [("single", SINGLE, 32)],

@@ -14,8 +14,8 @@ the standard" of the module specifications.
 
 | Clause | Title | Owner | Requirements | Test cases | Status |
 | --- | --- | --- | --- | --- | --- |
-| SPP 3.2.2 | Space Packet SDU | SE-1 | RE-RC-02, SE-BF-01, SE-BF-02 | TC-RE-03, TC-RE-06, TC-RE-10, TC-SE-01, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-14 | Verified |
-| SPP 3.2.3.1 | Octet String length | SE-1 | PK-CN-01, SE-BF-02 | TC-PK-02, TC-SE-05, TC-SE-06, TC-SE-07 | Verified |
+| SPP 3.2.2 | Space Packet SDU | SE-1 | RE-RC-02, SE-BF-01, SE-BF-02 | TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-14 | Verified |
+| SPP 3.2.3.1 | Octet String length | SE-1 | PK-CN-01, SE-BF-02, SE-BF-04 | TC-PK-02, TC-SE-02, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-08, TC-SE-15 | Verified |
 | SPP 3.2.3.2, 3.2.3.3 | Secondary header in and placement of the Octet String | SE-3 | SE-AS-01 | TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
 | SPP 3.2.3.4 | Use of the Octet String Service | SE-1 | SE-IF-01 | TC-SE-01, TC-SE-14 | Verified |
 | SPP 3.3.1 | Packet Service | SE-3 | CO-SY-01, SE-AS-03 | TC-CO-01, TC-SE-04, TC-SE-07, TC-SE-14 | Verified |
@@ -30,15 +30,15 @@ the standard" of the module specifications.
 | SPP 3.4.2.4 | Data Loss Indicator | RE-2 | RE-DM-03 | TC-RE-05, TC-RE-10 | Verified |
 | SPP 3.4.3.2 | OCTET_STRING.request | SE-1 | SE-AS-01, SE-IF-01, SE-IF-02 | TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
 | SPP 3.4.3.3 | OCTET_STRING.indication | RE-3 | RE-IF-02, RE-IF-03 | TC-RE-01, TC-RE-02, TC-RE-10 | Verified |
-| SPP 4.1.2 | Space Packet structure and length | SE-3 | PK-CN-01, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-02, TC-RE-03, TC-RE-06, TC-RE-10, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14 | Verified |
-| SPP 4.1.3.1, 4.1.3.2 | Packet Primary Header, Packet Version Number | SE-3 | PK-FN-01, PK-FN-02, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-01, TC-RE-03, TC-RE-06, TC-RE-10, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14 | Verified |
+| SPP 4.1.2 | Space Packet structure and length | SE-3 | PK-CN-01, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-02, TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14, TC-SE-15 | Verified |
+| SPP 4.1.3.1, 4.1.3.2 | Packet Primary Header, Packet Version Number | SE-3 | PK-FN-01, PK-FN-02, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-01, TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14, TC-SE-15 | Verified |
 | SPP 4.1.3.3.1, 4.1.3.3.2 | Packet Identification Field, Packet Type | SE-3 | PK-FN-01, SE-AS-01 | TC-PK-01, TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
-| SPP 4.1.3.3.3 | Secondary Header Flag | SE-3 | SE-AS-01, SE-BF-03, SE-BF-04 | TC-SE-01, TC-SE-02, TC-SE-05, TC-SE-07, TC-SE-08, TC-SE-14 | Verified |
-| SPP 4.1.3.3.4 | Application Process Identifier | SE-3 | PK-CN-01, RE-RC-02, SE-AS-01 | TC-PK-02, TC-RE-03, TC-RE-06, TC-RE-10, TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
+| SPP 4.1.3.3.3 | Secondary Header Flag | SE-3 | SE-AS-01, SE-BF-03, SE-BF-04 | TC-SE-01, TC-SE-02, TC-SE-05, TC-SE-07, TC-SE-08, TC-SE-14, TC-SE-15 | Verified |
+| SPP 4.1.3.3.4 | Application Process Identifier | SE-3 | PK-CN-01, RE-RC-02, SE-AS-01 | TC-PK-02, TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
 | SPP 4.1.3.4.1, 4.1.3.4.2 | Packet Sequence Control Field, Sequence Flags | SE-3 | PK-CN-01, PK-FN-01, RE-DM-02, SE-AS-01 | TC-PK-01, TC-PK-02, TC-RE-02, TC-RE-04, TC-RE-10, TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
-| SPP 4.1.3.4.3 | Packet Sequence Count or Packet Name | TB-1 | CO-SY-06, SE-AS-02, SE-BF-04, TB-FN-01 | TC-CO-09, TC-SE-01, TC-SE-02, TC-SE-03, TC-SE-08, TC-SE-14, TC-TB-02, TC-TB-05 | Verified |
-| SPP 4.1.3.5 | Packet Data Length | SE-3 | PK-FN-01, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-01, TC-RE-03, TC-RE-06, TC-RE-10, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14 | Verified |
-| SPP 4.1.4.1 | Packet Data Field | SE-3 | SE-AS-01 | TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
+| SPP 4.1.3.4.3 | Packet Sequence Count or Packet Name | TB-1 | CO-SY-06, SE-AS-02, SE-BF-04, TB-FN-01 | TC-CO-09, TC-SE-01, TC-SE-02, TC-SE-03, TC-SE-08, TC-SE-14, TC-SE-15, TC-TB-02, TC-TB-05 | Verified |
+| SPP 4.1.3.5 | Packet Data Length | SE-3 | PK-FN-01, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-01, TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14, TC-SE-15 | Verified |
+| SPP 4.1.4.1 | Packet Data Field | SE-3 | CO-IF-04, RE-IF-06, SE-AS-01, SE-BF-04 | TC-CO-11, TC-RE-11, TC-SE-01, TC-SE-02, TC-SE-07, TC-SE-08, TC-SE-14, TC-SE-15 | Verified |
 | SPP 4.1.4.2 | Packet Secondary Header | User (contents of the Octet String) | - | - | User obligation |
 | SPP 4.1.4.3 | User Data Field | SE-3 | SE-AS-01 | TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
 | SPP 4.2.2 | Packet Assembly Function | SE-3 | SE-AS-01, SE-AS-02 | TC-SE-01, TC-SE-02, TC-SE-03, TC-SE-07, TC-SE-14 | Verified |
@@ -59,7 +59,7 @@ the standard" of the module specifications.
 | CPTP 5.5.2 | Send request | SE-1 | CO-SY-03, MG-CN-01, MG-IF-03, SE-BF-02, SE-IF-05 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-MG-05, TC-SE-02, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-09, TC-SE-12 | Verified |
 | CPTP 5.5.3 | Transfer packet | EN-1 | EN-TX-01 | TC-EN-01, TC-EN-04 | Verified |
 | CPTP 5.5.4.1 to 5.5.4.3 | Protocol Identifier, Reserved field zero and not zero | EN-2 | EN-IF-03, EN-RX-01, EN-RX-02, MG-CN-01, MG-IF-03 | TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05 | Verified |
-| CPTP 5.5.4.4 | Error end of packet | EN-2 | CO-SY-03, EN-RX-02, EN-RX-03, MG-CN-01, MG-IF-03, RE-IF-04, RE-RC-02 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05, TC-RE-03, TC-RE-04, TC-RE-06, TC-RE-10 | Verified |
+| CPTP 5.5.4.4 | Error end of packet | EN-2 | CO-SY-03, EN-RX-02, EN-RX-03, MG-CN-01, MG-IF-03, RE-IF-04, RE-RC-02 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05, TC-RE-03, TC-RE-04, TC-RE-06, TC-RE-10, TC-RE-11 | Verified |
 
 Clauses: 46; not implemented: 1; user obligation: 1; verified: 44.
 
@@ -71,13 +71,13 @@ included).
 | Module | Requirements | Verified by a test case | Without a test case |
 | --- | --- | --- | --- |
 | `spp_apid_table` | 8 | 8 | - |
-| `spp_core` | 10 | 10 | - |
+| `spp_core` | 11 | 11 | - |
 | `spp_encapsulation` | 9 | 9 | - |
 | `spp_header` | 8 | 8 | - |
 | `spp_mib` | 14 | 14 | - |
-| `spp_nchar` | 4 | 4 | - |
+| `spp_nchar` | 5 | 5 | - |
 | `spp_pkg` | 5 | 5 | - |
-| `spp_receive` | 13 | 13 | - |
-| `spp_send` | 17 | 17 | - |
+| `spp_receive` | 14 | 14 | - |
+| `spp_send` | 18 | 18 | - |
 
-Requirements: 88; without a test case: 0; test cases of the plans not run by a testbench: 0.
+Requirements: 92; without a test case: 0; test cases of the plans not run by a testbench: 0.

@@ -202,7 +202,7 @@ registers:
     description: SDUs rejected by the sending end (1)
     fields:
       - {name: OVERSIZE, bits: "15:0", access: RC, reset: 0, description: "Longer than the maximum packet length or the buffer (0x01)"}
-      - {name: SHORT, bits: "31:16", access: RC, reset: 0, description: "Space Packet shorter than 7 bytes (0x02)"}
+      - {name: SHORT, bits: "31:16", access: RC, reset: 0, description: "Space Packet shorter than 7 bytes or Octet String without any byte (0x02)"}
 
   - name: ERR_TX2
     offset: 0x0A4

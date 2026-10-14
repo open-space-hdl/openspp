@@ -315,6 +315,46 @@ begin
                 check_value(Errors.Total, 9, ERROR, "error events");
                 check_value(Delivered, 7, ERROR, "SDUs delivered");
 
+            elsif run("test_null_bytes") then
+                -- A received packet whose last beat carries no byte (AXI4-Stream null bytes) is delivered without that
+                -- beat; a packet without any byte is shorter than 7 bytes and discarded (SPP 4.1.4.1.2)
+                if NumRx_g > 1 then
+                    tblWrite(20, rxEntry(1, 1));
+                    tblWrite(30, rxEntry(1, 2));
+                end if;
+                tbSetNullTail(ChSrc_c, true);
+                receive(tbPayload(0, 1));
+                waitDone;
+                checkErrors(ErrRxShort_c, 1, "packet without bytes discarded");
+                check_value(Delivered, 0, ERROR, "nothing delivered for a packet without bytes");
+
+                for i in 0 to 5 loop
+
+                    case i is
+                        when 0 => Len_v := 1;
+                        when 1 => Len_v := Bytes_c;
+                        when 2 => Len_v := Bytes_c + 1;
+                        when 3 => Len_v := 2 * Bytes_c;
+                        when 4 => Len_v := maximum(1, 2 * Bytes_c - 6);
+                        when others => Len_v := 37;
+                    end case;
+
+                    if OctetString_c(i mod NumRx_g) = '1' then
+                        good(i mod NumRx_g, 10 * (i mod NumRx_g + 1), Len_v, i + 2);
+                    else
+                        receive(tbSpacePacket(0, 0, 20, 3, i, tbPayload(Len_v, i + 2)));
+                        expect(i mod NumRx_g, false, tbSpacePacket(0, 0, 20, 3, i, tbPayload(Len_v, i + 2)));
+                    end if;
+                end loop;
+
+                waitDone;
+                check_value(Delivered, 6, ERROR, "packets with a last beat without bytes delivered");
+                tbSetNullTail(ChSrc_c, false);
+                good(0, 10, 3, 9);
+                waitDone;
+                check_value(Delivered, 7, ERROR, "SDUs delivered");
+                check_value(Errors.Total, 1, ERROR, "error events");
+
             elsif run("test_routing") then
                 -- No path (disabled entry, port beyond the ports), Sequence Flags of an Octet String port
                 tblWrite(40, rxEntry(0, 0));

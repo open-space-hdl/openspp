@@ -359,6 +359,31 @@ begin
                 waitAll;
                 regCheck(1, RegRxPackets_c, word(10), "SDUs delivered by B");
 
+            elsif run("test_idle") then
+                -- Idle cores after the table initialisation: no metavalue reaches the arithmetic of the data paths.
+                -- The VUnit configuration of this test enables the IEEE warnings and fails on a metavalue warning
+                -- after the marker below.
+                report "SPP_IDLE_CHECK_START";
+                wait for 20 us;
+                octet(0, 0, 0, 16#123#, tbPayload(20, 1));
+                waitAll;
+                -- A last beat without bytes from the user ends the SDU; an SDU without any byte is rejected
+                tbSetNullTail(ChTxA_c, true);
+                octet(0, 0, 0, 16#123#, tbPayload(DataWidth_g / 8, 2));
+                tbPush(ChTxA_c, tbPayload(0, 3), tbTxUser(16#123#));
+                waitAll;
+                tbSetNullTail(ChTxA_c, false);
+                regCheck(0, RegErrTx1_c, word(2 ** 16), "ERR_TX1: SDU without bytes");
+                -- A last beat without bytes from the link ends the packet
+                LinkAB.Sel <= '1';
+                tbSetNullTail(ChInjB_c, true);
+                inject(tbSpacePacket(0, 0, 5, 3, 0, tbPayload(10, 4)));
+                tbPush(ChRxB_c, tbPayload(10, 4), tbRxUser(5, 0, 0, 0, 16#77# * boolean'pos(Encapsulation_g)));
+                waitAll;
+                tbSetNullTail(ChInjB_c, false);
+                LinkAB.Sel <= '0';
+                regCheck(1, RegRxPackets_c, word(3), "SDUs delivered by B");
+
             elsif run("test_link_errors") then
                 -- Faulty packets injected into the link input of core B, each followed by a correct one
                 regWrite(1, RegConfig_c, x"00004004");

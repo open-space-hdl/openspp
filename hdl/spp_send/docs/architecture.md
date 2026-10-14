@@ -13,10 +13,13 @@ per word, feature set `DROP_SKIP_ONLY`). At the last beat the checks of SE-BF-02
 | Order | Octet String port | Packet Service port |
 | --- | --- | --- |
 | 1 | Oversize (0x01) | Oversize (0x01) |
-| 2 | Idle APID with SHI (0x05) | Shorter than 7 bytes (0x02) |
-| 3 | Packet Name of a telemetry packet (0x06) | Version not '000' (0x03) |
-| 4 | | Length not PDL + 7 (0x04) |
+| 2 | Without any byte (0x02) | Shorter than 7 bytes (0x02) |
+| 3 | Idle APID with SHI (0x05) | Version not '000' (0x03) |
+| 4 | Packet Name of a telemetry packet (0x06) | Length not PDL + 7 (0x04) |
 | 5 | | Idle APID with SHF (0x05) |
+
+The byte count adds the set bits of `Keep` of every beat, so a last beat without byte enables (D15) adds nothing: the
+SDU consists of the bytes of the earlier beats, and the beat itself is stored like any other.
 
 A failed SDU is dropped with `In_Drop` together with its last beat and reported. The oversize check runs on every
 beat: once the byte count exceeds the limit, `In_Drop` is asserted and the rest of the SDU is consumed. The byte count
@@ -53,9 +56,10 @@ Name is used (then it is released); a Space Packet releases the entry. The job h
 and its length (6 or 0), the byte length and the destination.
 
 `SStream_s` reads the data FIFO of the job's port. A dropped SDU is skipped with `Out_Next` on its first word, which
-ends it at once. Otherwise every word goes through `spp_header_insert` with the job's header; the byte enables of the
-last word follow from the remaining byte count. A double error in any word sets the EEP flag of `TUser` with the last
-beat.
+ends it at once. Otherwise every word goes through `spp_header_insert` with the job's header; the byte enables and
+`Last` of the last word follow from the remaining byte count. When a stored word without bytes follows (a last beat
+without byte enables at the port, D15), it is skipped like a dropped SDU, so no beat without bytes leaves the output.
+A double error in any word sets the EEP flag of `TUser` with the last beat.
 
 The table transaction takes four cycles and the job register lets it run during the transfer of the previous packet;
 in simulation, packets of 256 bytes leave the output without a gap (SE-PF-01).

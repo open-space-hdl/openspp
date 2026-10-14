@@ -10,8 +10,10 @@
 `olo_base_wconv_xn2n` splits every link beat into its bytes; `S_Link_Keep` is its word enable, so only the valid bytes
 of the last beat are sent. When the last beat of a packet enters the converter, its EEP flag is stored and the input is
 blocked until the marker of that packet is sent. After the converter outputs the last byte, the adapter outputs the
-marker (`TData` 0x00 for EOP, 0x01 for EEP, `TLast` = '1'). The destination index of `S_Link_User` is not used: on
-SpaceWire the Target SpaceWire Address routes the packet.
+marker (`TData` 0x00 for EOP, 0x01 for EEP, `TLast` = '1'). A last beat without byte enables (D15) does not enter the
+converter, which would lose its `In_Last`: the adapter accepts it, stores its EEP flag and outputs the marker once the
+converter is empty, or nothing when no data character of the packet was sent. The destination index of
+`S_Link_User` is not used: on SpaceWire the Target SpaceWire Address routes the packet.
 
 ## 3. Receive direction
 
