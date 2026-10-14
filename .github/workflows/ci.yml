@@ -58,6 +58,10 @@ jobs:
         run: python tools/regmap.py --check
       - name: Standard traceability
         run: python tools/compliance.py --check
+      - name: Compile order up to date
+        run: |
+          python run.py --compile-order
+          git diff --exit-code compile_order.txt
       - name: Markdown lint
         uses: DavidAnson/markdownlint-cli2-action@v24
         with:
