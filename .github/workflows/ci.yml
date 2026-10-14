@@ -9,14 +9,14 @@ on:
 
 jobs:
   simulation-ghdl:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           submodules: true
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install Python packages
@@ -33,18 +33,18 @@ jobs:
         run: python run.py -p 4 --xunit-xml results.xml
       - name: Publish test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vunit-results
           path: results.xml
 
   linting:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install Python packages
@@ -59,7 +59,7 @@ jobs:
       - name: Standard traceability
         run: python tools/compliance.py --check
       - name: Markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@v17
+        uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           config: .markdownlint.json
           globs: |
