@@ -74,6 +74,11 @@ architecture sim of spp_core_tb is
     signal StatBA : LinkStat_t;
     signal Cores  : CoreStatArray_t;
 
+    -- Positive control of the post check of test_idle: a vector that is never driven ('U')
+    signal IeeeProbeReq  : boolean := false;
+    signal IeeeProbeAck  : boolean := false;
+    signal IeeeProbeData : unsigned(3 downto 0);
+
 begin
 
     test_runner_watchdog(runner, 100 ms);
@@ -362,7 +367,13 @@ begin
             elsif run("test_idle") then
                 -- Idle cores after the table initialisation: no metavalue reaches the arithmetic of the data paths.
                 -- The VUnit configuration of this test enables the IEEE warnings and fails on a metavalue warning
-                -- after the marker below.
+                -- after the marker below. Positive control: the testbench raises one numeric_std warning itself
+                -- between the probe markers, and the post check requires it, so the test fails when the IEEE
+                -- warnings are disabled.
+                report "SPP_IDLE_PROBE_START";
+                IeeeProbeReq <= true;
+                wait until IeeeProbeAck;
+                report "SPP_IDLE_PROBE_END";
                 report "SPP_IDLE_CHECK_START";
                 wait for 20 us;
                 octet(0, 0, 0, 16#123#, tbPayload(20, 1));
@@ -563,6 +574,16 @@ begin
         end loop;
 
         sppTestEnd(runner);
+        wait;
+    end process;
+
+    -- Positive control of test_idle: to_integer of an undefined vector raises the numeric_std warning
+    -- "metavalue detected" when the IEEE warnings are enabled; the result is checked so that it is evaluated
+    p_ieee_probe : process is
+    begin
+        wait until IeeeProbeReq;
+        check_value(to_integer(IeeeProbeData), 0, ERROR, "to_integer of an undefined vector");
+        IeeeProbeAck <= true;
         wait;
     end process;
 
