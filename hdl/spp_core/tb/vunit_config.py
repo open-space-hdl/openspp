@@ -19,11 +19,22 @@ IDLE = {"cptp_w32": {"DataWidth_g": 32, "Encapsulation_g": True},
         "plain_w64": {"DataWidth_g": 64, "Encapsulation_g": False},
         "nchar_w32": {"DataWidth_g": 32, "Encapsulation_g": True, "NChar_g": True}}
 IDLE_MARKER = "SPP_IDLE_CHECK_START"
+# Positive control: the testbench raises the warning of to_integer on an undefined vector between these markers
+PROBE_MARKERS = ("SPP_IDLE_PROBE_START", "SPP_IDLE_PROBE_END")
 
 
 def no_metavalue_after_marker(output_path):
-    """Post check of test_idle: fails on a numeric_std metavalue warning after the marker of the testbench."""
+    """Post check of test_idle: requires the numeric_std warning of the testbench probe (the IEEE warnings are
+    enabled) and fails on a numeric_std metavalue warning after the marker of the testbench."""
     text = (Path(output_path) / "output.txt").read_text(encoding="utf-8", errors="replace").splitlines()
+    probe = [next((i for i, line in enumerate(text) if marker in line), None) for marker in PROBE_MARKERS]
+    if None in probe:
+        print("test_idle: probe markers " + " and ".join(PROBE_MARKERS) + " not found in the simulator output")
+        return False
+    if not any("TO_INTEGER" in line.upper() and "metavalue" in line.lower() for line in text[probe[0] + 1:probe[1]]):
+        print("test_idle: the numeric_std warning of the testbench probe is missing; the IEEE warnings are disabled, "
+              "so the check after the marker would see nothing")
+        return False
     start = next((i for i, line in enumerate(text) if IDLE_MARKER in line), None)
     if start is None:
         print("test_idle: marker " + IDLE_MARKER + " not found in the simulator output")
