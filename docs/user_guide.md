@@ -1,9 +1,10 @@
 # OpenSPP User Guide
 
 This guide describes how to integrate the OpenSPP core `spp_core` into an FPGA design: sources, generics, clock and
-reset, interfaces, the programming sequence, the protection scope, the integration constraints and the conformance
-statement for CCSDS 133.0-B-2 (Annex A, PICS proforma) and ECSS-E-ST-50-53C. The architecture is described in
-[architecture.md](architecture.md), the registers in the generated [register map](../hdl/spp_mib/docs/register_map.md).
+reset, interfaces, the programming sequence, the protection scope, the performance, the integration constraints and
+the conformance statement for CCSDS 133.0-B-2 (Annex A, PICS proforma) and ECSS-E-ST-50-53C. The architecture is
+described in [architecture.md](architecture.md), the registers in the generated
+[register map](../hdl/spp_mib/docs/register_map.md).
 
 ## 1. Sources
 
@@ -46,8 +47,8 @@ convention); synchronise its release to `Clk`, for example with `olo_base_reset_
 the reset the core initialises both APID tables (2048 clock cycles, `TABLE_STATUS.TX_BUSY` and `RX_BUSY`). The send
 ports accept SDUs meanwhile; packets are sent and delivered once the tables are ready.
 
-Every path accepts one beat per clock cycle while its output is ready. The sending end adds no cycle per packet, the
-receiving end one cycle per packet. At 100 MHz and 32 bits the core carries 3.2 Gbit/s in each direction.
+Every path takes one beat per clock cycle while its output is ready; section 7 gives the clock cycles per packet. At
+100 MHz and 32 bits the link ports carry up to 3.2 Gbit/s in each direction.
 
 ## 4. Interfaces
 
@@ -199,7 +200,83 @@ The integrator:
 The ECC paths are verified in simulation by error injection. Whether the protection as a whole meets the
 requirements of a mission is shown by a radiation test with the core in operation (TRL 5).
 
-## 7. Integration constraints
+## 7. Performance
+
+The figures are clock cycles of `Clk` for back-to-back packets of one length without stalls at the outputs, with
+B = `DataWidth_g` / 8 bytes per beat. They follow from the design and are measured by the core test TC-CO-12 at 32,
+64 and 128 bits ([verification report](../hdl/spp_core/docs/verification_report.md)). All rates scale with the
+frequency of `Clk`; the core has no clock ratio constraint.
+
+### 7.1 Packet lengths
+
+| Length | Bytes |
+| --- | --- |
+| Space Packet `Lsp` | Octet String plus 6 (Packet Primary Header); at a Packet Service port the SDU itself |
+| Link packet `Llink` | With the CPTP layer `Lsp` + 4 + `A` (Target Logical Address, Protocol Identifier, Reserved, User Application value; `A` address bytes of the destination, 0 to `SpwAddrBytes_g`); without it `Lsp` |
+| Delivered SDU | The receiving end removes `CONFIG.RX_STRIP` + 4 bytes (CPTP layer) and, at an Octet String port, the 6 bytes of the Packet Primary Header |
+
+### 7.2 Data rate per interface
+
+With `N` = ceil(`Llink` / B) link beats of a packet:
+
+| Interface | Beats per clock cycle | Clock cycles per packet |
+| --- | --- | --- |
+| `S_Tx_*` (each send port) | 1 while its buffer has room (`TxMaxPackets_g` SDUs, `TxBufferBytes_g`) | ceil(SDU / B): no cycle between SDUs |
+| `M_Link_*` | 1 during a packet | max(`N` + `e`, 5), `e` 0 or 1 (below) |
+| `S_Link_*` | 1 while the receive buffer has room (`RxMaxPackets_g` packets, `RxBufferBytes_g`) | `N`, at most one cycle more for the removal of the CPTP header |
+| `M_Rx_*` (the port of the packet) | 1 during an SDU | max(ceil(`Lsp` / B) + 1, 5) |
+
+Both directions therefore carry at least one packet per max(`N` + 1, 5) clock cycles. The receiving end delivers a
+packet in max(ceil(`Lsp` / B) + 1, 5) cycles: the one cycle is the read of the next packet from the receive buffer.
+The sending end needs `e` = 1 cycle per packet to pass from one SDU in the send buffer to the next; this cycle is
+hidden (`e` = 0) when a header insertion outputs a final beat with the bytes it shifted past the last input beat. A
+header of `h` bytes in front of `n` bytes does so when ceil((`n` + `h`) / B) > floor(`h` / B) + ceil(`n` / B), with
+`h` = 6 for the Packet Primary Header of an Octet String and `h` = 4 + `A` for the CPTP header in front of the Space
+Packet. Packet Service ports without the CPTP layer always have `e` = 1. The lower limit of five cycles per packet is
+the preparation of a packet (choice of the port, descriptor, access to the APID table) at the sending end and the
+lookup of the receive APID table at the receiving end; both overlap the transfer of the previous packet, so they
+limit only packets of up to four link beats.
+
+Measured cycles per packet with the CPTP layer and a destination without Target SpaceWire Address (TC-CO-12):
+
+| Packets | 32 bits: `N` | `M_Link` | `M_Rx` | 128 bits: `N` | `M_Link` | `M_Rx` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Octet Strings of 1 byte | 3 | 5 | 5 | 1 | 5 | 5 |
+| Octet Strings of 61 bytes | 18 | 19 | 18 | 5 | 5 | 6 |
+| Octet Strings of 256 bytes | 67 | 67 | 67 | 17 | 17 | 18 |
+| Octet Strings of 1024 bytes | 259 | 259 | 259 | 65 | 65 | 66 |
+| Space Packets of 67 bytes (Packet Service) | 18 | 19 | 18 | 5 | 6 | 6 |
+| Space Packets of 1030 bytes (Packet Service) | 259 | 260 | 259 | 65 | 66 | 66 |
+
+From end to end the slower of both ends sets the rate: at 100 MHz Octet Strings of 1024 bytes pass at 3.16 Gbit/s of
+SDU data at 32 bits (259 cycles) and at 12.4 Gbit/s at 128 bits (66 cycles).
+
+### 7.3 Several active ports
+
+- The multiplexer chooses the next packet when the transfer of the current packet starts, among the send ports with
+  a complete SDU in their buffer. A change of the port costs no cycle: two ports that alternate keep the cycles per
+  packet of one port.
+- Round robin (`CONFIG.ROUND_ROBIN` = '1'): the ports with a complete SDU take turns packet by packet. With `k` active
+  ports each gets every `k`-th packet, so its share of the link is in proportion to the lengths of its packets
+  (fair per packet, not per byte).
+- Fixed priority (`CONFIG.ROUND_ROBIN` = '0'): the send port with the lowest index and a complete SDU is chosen. A port
+  that always has a complete SDU blocks all higher ports; their `S_Tx_Ready` stays low once their buffers are full.
+- Receiving end: all receive ports share one buffer and get their packets in the order of arrival. A receive port
+  that does not take its SDU stops the delivery to all ports (section 8).
+
+### 7.4 Latency
+
+Both ends store and forward: a packet is sent only after the last beat of its SDU is in the send buffer, and an SDU
+is delivered only after the last beat of its packet is in the receive buffer. The latency of a packet therefore
+contains its own length twice, once at each end, besides the preparation and the pipeline stages.
+
+### 7.5 N-Char adapter
+
+`spp_nchar` converts a link packet of `n` bytes into `n` data characters and the end of packet marker, one character
+per clock cycle; at widths above 8 bits one cycle separates two packets, so a packet needs at most `n` + 2 cycles. In
+the receive direction the adapter takes one character per clock cycle (TC-AD-03).
+
+## 8. Integration constraints
 
 | Constraint | Reason |
 | --- | --- |
@@ -212,9 +289,9 @@ requirements of a mission is shown by a radiation test with the core in operatio
 | The subnetwork returns `S_Link_Ready` flow control to its sender | The receiving end stalls the link while its buffer is full |
 | The ECC injection (`ECC_INJECT`) is for tests only | An injected double error discards an SDU or packet or ends it with an EEP |
 
-## 8. Conformance
+## 9. Conformance
 
-### 8.1 Space Packet Protocol (CCSDS 133.0-B-2, Annex A)
+### 9.1 Space Packet Protocol (CCSDS 133.0-B-2, Annex A)
 
 OpenSPP implements the Packet Service and the Octet String Service at the sending and the receiving end. The support
 column of the requirements list of the PICS proforma (Annex A2.2) for a core with ports of both services:
@@ -252,7 +329,7 @@ The Packet Secondary Header Contents (Table 5-1) are agreed between the users by
 unchanged. The interpretations of the standard are listed in the sections "Interpretation of the standard" of the
 module specifications, for example that the APID parameter of PACKET.request is the APID of the submitted packet.
 
-### 8.2 CCSDS packet transfer protocol (ECSS-E-ST-50-53C)
+### 9.2 CCSDS packet transfer protocol (ECSS-E-ST-50-53C)
 
 With `Encapsulation_g` true the core is initiator and target of the CCSDS packet transfer protocol:
 
@@ -267,7 +344,7 @@ With `Encapsulation_g` true the core is initiator and target of the CCSDS packet
 
 The [compliance matrix](compliance.md) lists the requirements and the test cases of every clause.
 
-## 9. Verification and tools
+## 10. Verification and tools
 
 ```shell
 python run.py -p 4                          # regression with GHDL
