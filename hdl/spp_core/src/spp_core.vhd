@@ -18,6 +18,9 @@ library ieee;
     use ieee.std_logic_1164.all;
     use ieee.numeric_std.all;
 
+library olo;
+    use olo.olo_base_pkg_math.all;
+
 library work;
     use work.spp_pkg.all;
 
@@ -116,6 +119,35 @@ architecture struct of spp_core is
 
     constant NumErr_c : positive := NumTx_g + 4;
 
+    -- Bounds of the buffers in beats (specification CO-GN-02 to CO-GN-04, depth limit of Open Logic)
+    constant Bytes_c       : positive := DataWidth_g / 8;
+    constant TxBeats_c     : natural  := TxBufferBytes_g / Bytes_c;
+    constant RxBeats_c     : natural  := RxBufferBytes_g / Bytes_c;
+    -- Beats of the shortest and of the longest Space Packet
+    constant MinPktBeats_c : positive := (MinPacketBytes_c + Bytes_c - 1) / Bytes_c;
+    constant MaxPktBeats_c : positive := (MaxPacketBytes_c + Bytes_c - 1) / Bytes_c;
+    -- Largest depth of the Open Logic packet FIFO, which computes 2 * Depth_g in integer arithmetic
+    constant OloDepth_c    : positive := 2 ** 29;
+    -- Smallest buffer: the shortest Space Packet, at least the two entries of the packet FIFO
+    constant MinBeats_c    : positive := maximum(2, 2 ** log2ceil(MinPktBeats_c));
+
+    -- Beats of a buffer that are ever written: the packet FIFO holds at most packets Space Packets of at most
+    -- MaxPacketBytes_c bytes. Returns 2 ** 30 (above every valid depth) when the product exceeds OloDepth_c
+    function writtenBeats (packets : positive) return positive is
+    begin
+        if packets > OloDepth_c / MaxPktBeats_c then
+            return 2 ** 30;
+        end if;
+        return 2 ** log2ceil(packets * MaxPktBeats_c);
+    end function;
+
+    constant TxMaxBeats_c : positive := writtenBeats(TxMaxPackets_g);
+    constant RxMaxBeats_c : positive := writtenBeats(RxMaxPackets_g);
+    -- Packets that fit into a buffer: an Octet String of one byte takes one beat of a send buffer, a received
+    -- Space Packet at least MinPktBeats_c beats; never less than the two entries of the packet FIFO
+    constant TxMaxPkts_c  : positive := maximum(2, TxBeats_c);
+    constant RxMaxPkts_c  : positive := maximum(2, RxBeats_c / MinPktBeats_c);
+
     function toSl (b : boolean) return std_logic is
     begin
         if b then
@@ -188,6 +220,48 @@ architecture struct of spp_core is
 
 begin
 
+    -- Bounds of the buffer generics (specification CO-GN-02 to CO-GN-04, depth limit of Open Logic)
+    assert TxBeats_c >= MinBeats_c
+        report "spp_core: TxBufferBytes_g = " & integer'image(TxBufferBytes_g) & " bytes = " &
+               integer'image(TxBeats_c) & " beats: at least max(2, nextpow2(ceil(7/" & integer'image(Bytes_c) &
+               "))) = " & integer'image(MinBeats_c) & " beats hold the shortest Space Packet (CO-GN-02)"
+        severity failure;
+
+    assert RxBeats_c >= MinBeats_c
+        report "spp_core: RxBufferBytes_g = " & integer'image(RxBufferBytes_g) & " bytes = " &
+               integer'image(RxBeats_c) & " beats: at least max(2, nextpow2(ceil(7/" & integer'image(Bytes_c) &
+               "))) = " & integer'image(MinBeats_c) & " beats hold the shortest Space Packet (CO-GN-02)"
+        severity failure;
+
+    assert TxBeats_c <= TxMaxBeats_c
+        report "spp_core: TxBufferBytes_g = " & integer'image(TxBeats_c) & " beats: at most nextpow2(TxMaxPackets_g x ceil(65542/" &
+               integer'image(Bytes_c) & ")) = " & integer'image(TxMaxBeats_c) & " beats are ever written (CO-GN-03)"
+        severity failure;
+
+    assert RxBeats_c <= RxMaxBeats_c
+        report "spp_core: RxBufferBytes_g = " & integer'image(RxBeats_c) & " beats: at most nextpow2(RxMaxPackets_g x ceil(65542/" &
+               integer'image(Bytes_c) & ")) = " & integer'image(RxMaxBeats_c) & " beats are ever written (CO-GN-03)"
+        severity failure;
+
+    -- The buffers get at least 2 packets, so that a smaller value stops here and not in Open Logic
+    assert TxMaxPackets_g >= 2 and TxMaxPackets_g <= TxMaxPkts_c
+        report "spp_core: TxMaxPackets_g = " & integer'image(TxMaxPackets_g) & ": at least 2 (entries of the packet FIFO), at most " &
+               "max(2, TxBufferBytes_g / " & integer'image(Bytes_c) & ") = " & integer'image(TxMaxPkts_c) &
+               " SDUs of one byte fit into the send buffer (CO-GN-04)"
+        severity failure;
+
+    assert RxMaxPackets_g >= 2 and RxMaxPackets_g <= RxMaxPkts_c
+        report "spp_core: RxMaxPackets_g = " & integer'image(RxMaxPackets_g) & ": at least 2 (entries of the packet FIFO), at most " &
+               "max(2, " & integer'image(RxBeats_c) & " beats / ceil(7/" & integer'image(Bytes_c) & ")) = " &
+               integer'image(RxMaxPkts_c) & " Space Packets fit into the receive buffer (CO-GN-04)"
+        severity failure;
+
+    assert TxBeats_c <= OloDepth_c and RxBeats_c <= OloDepth_c
+        report "spp_core: TxBufferBytes_g = " & integer'image(TxBeats_c) & " beats, RxBufferBytes_g = " &
+               integer'image(RxBeats_c) & " beats: at most 2**29 beats (integer arithmetic of the Open Logic packet " &
+               "FIFO)"
+        severity failure;
+
     -- Sending end (SE-1 to SE-3, TB-1)
     i_send : entity work.spp_send
         generic map (
@@ -195,7 +269,7 @@ begin
             NumTx_g         => NumTx_g,
             TxOctetString_g => TxOctetString_g,
             BufferBytes_g   => TxBufferBytes_g,
-            MaxPackets_g    => TxMaxPackets_g,
+            MaxPackets_g    => maximum(2, TxMaxPackets_g),
             ClkFreqHz_g     => ClkFreqHz_g
         )
         port map (
@@ -319,7 +393,7 @@ begin
             NumRx_g         => NumRx_g,
             RxOctetString_g => RxOctetString_g,
             BufferBytes_g   => RxBufferBytes_g,
-            MaxPackets_g    => RxMaxPackets_g,
+            MaxPackets_g    => maximum(2, RxMaxPackets_g),
             ClkFreqHz_g     => ClkFreqHz_g
         )
         port map (

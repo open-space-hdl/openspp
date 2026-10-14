@@ -23,10 +23,10 @@ an N-Char stream, such as the OpenWire core.
 | `DataWidth_g` | 32 | Width of all streams in bits: 8 to 128, a multiple of 8 |
 | `NumTx_g`, `NumRx_g` | 1 | Send and receive ports (1 to 16) |
 | `TxOctetString_g`, `RxOctetString_g` | all '1' | Service of each port, bit p for port p: '1' Octet String Service, '0' Packet Service |
-| `TxBufferBytes_g` | 4096 | Buffer of each send port in bytes: `DataWidth_g` / 8 times a power of two. An SDU longer than the buffer is rejected |
-| `TxMaxPackets_g` | 8 | SDUs a send buffer holds (at least 2) |
-| `RxBufferBytes_g` | 4096 | Receive buffer in bytes, shared by all receive ports: `DataWidth_g` / 8 times a power of two. A packet longer than the buffer is discarded |
-| `RxMaxPackets_g` | 8 | Packets the receive buffer holds (at least 2) |
+| `TxBufferBytes_g` | 4096 | Buffer of each send port in bytes: B times a power of two beats, at least max(2, nextpow2(ceil(7 / B))) and at most nextpow2(`TxMaxPackets_g` x ceil(65542 / B)) beats (more are never written). An SDU longer than the buffer is rejected |
+| `TxMaxPackets_g` | 8 | SDUs a send buffer holds: 2 to max(2, `TxBufferBytes_g` / B) |
+| `RxBufferBytes_g` | 4096 | Receive buffer in bytes, shared by all receive ports: B times a power of two beats, at least max(2, nextpow2(ceil(7 / B))) and at most nextpow2(`RxMaxPackets_g` x ceil(65542 / B)) beats. A packet longer than the buffer is discarded |
+| `RxMaxPackets_g` | 8 | Packets the receive buffer holds: 2 to max(2, floor(`RxBufferBytes_g` / B / ceil(7 / B))) |
 | `Encapsulation_g` | true | CPTP layer of ECSS-E-ST-50-53C; false removes it (section 4.3) |
 | `NumDest_g` | 1 | Destinations of the CPTP layer (1 to 16) |
 | `SpwAddrBytes_g` | 4 | Maximum Target SpaceWire Address of a destination in bytes (0 to 16) |
@@ -34,7 +34,13 @@ an N-Char stream, such as the OpenWire core.
 | `RoundRobin_g` | '0' | Reset value of the Packet Multiplexing Scheme: '0' fixed priority (port 0 first), '1' round robin |
 | `Tla_g` | 0xFE | Reset value of the own Target Logical Address of the receive filter |
 | `TxPathDefault_g`, `RxPathDefault_g` | true | Initial entries of the APID tables: true enables the managed data path of every APID to destination 0 and to receive port 0, false disables all paths |
-| `ClkFreqHz_g` | 100.0e6 | Clock frequency, passed to the scrubbers of the APID tables (they run in every idle cycle) |
+| `ClkFreqHz_g` | 100.0e6 | Frequency of `Clk`; it has no effect, because the scrubbers of the APID tables run free (Open Logic `ScrubPeriod_g` = 0.0) |
+
+B is `DataWidth_g` / 8, the bytes of a beat. A value outside the bounds of the buffer generics stops the elaboration
+with a message that names the bound. Every value of `DataWidth_g`, `NumTx_g`, `NumRx_g`, `NumDest_g`, `SpwAddrBytes_g`
+and of the boolean generics is verified in simulation, and the buffer generics at their bounds. Not verified: buffers
+deeper than 2^29 beats are excluded by an assertion (the depth limit of the Open Logic packet FIFO), which is not
+elaborated, because such a buffer exceeds the memory of a simulation host.
 
 With the defaults every APID has an enabled path after the reset, so a node sends and receives without software. A
 flight configuration sets `TxPathDefault_g` and `RxPathDefault_g` to false and enables the managed data paths of the
@@ -351,7 +357,7 @@ python run.py -p 4                          # regression with GHDL
 python run.py --questa -p 1                 # regression with QuestaSim, full optimisation
 python run.py --questa --coverage -p 1      # code coverage with QuestaSim
 python lint/lint.py                         # VSG
-python lint/synth_check.py                  # synthesizability of five core configurations with GHDL
+python lint/synth_check.py                  # synthesizability of the core and the adapter with GHDL, bounds
 python tools/compliance.py --check          # traceability of SPP and CPTP
 python tools/regmap.py --check              # generated register map up to date
 python run.py --compile-order               # compile_order.txt of the synthesis sources

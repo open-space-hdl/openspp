@@ -7,11 +7,13 @@
 -- Description
 ---------------------------------------------------------------------------------------------------
 -- Link model between two cores: passes the packets of one core to the other, or the packets of an
--- injector stream when selected, and can drop packets or end them with an EEP.
+-- injector stream when selected, and can drop packets or end them with an EEP. With Strip > 0 it
+-- removes the leading bytes of every packet of the sending core, as the routers of a network remove
+-- path address bytes.
 --
 -- What this model does NOT check or reproduce: the timing and the flow control of a SpaceWire or
 -- SpaceFibre link; it never reorders packets; a packet is forwarded beat by beat with the handshake of
--- the receiving core.
+-- the receiving core (with Strip > 0: received completely, then sent).
 --
 -- Documentation: hdl/spp_core/docs/verification_plan.md
 
@@ -53,10 +55,12 @@ entity spp_core_tb_link is
         M_Last     : out   std_logic;
         M_User     : out   std_logic_vector(0 downto 0);
         -- Control: '1' forwards the injected packets (between packets); the packets of the sending core are
-        -- dropped up to DropTarget and ended with an EEP up to EepTarget (counted from the start)
+        -- dropped up to DropTarget and ended with an EEP up to EepTarget (counted from the start); Strip > 0
+        -- removes the first Strip bytes of every packet of the sending core (not combined with drop and EEP)
         Sel        : in    std_logic;
         DropTarget : in    natural;
         EepTarget  : in    natural;
+        Strip      : in    natural := 0;
         Dropped    : out   natural;
         Eeped      : out   natural;
         Forwarded  : out   natural
@@ -68,12 +72,24 @@ end entity;
 ---------------------------------------------------------------------------------------------------
 architecture sim of spp_core_tb_link is
 
+    type Bytes_t is array (natural range <>) of std_logic_vector(7 downto 0);
+
+    constant Bytes_c : positive := DataWidth_g / 8;
+
     signal InPkt : boolean := false;
     signal Drop  : boolean := false;
     signal Eep   : boolean := false;
     signal NDrop : natural := 0;
     signal NEep  : natural := 0;
     signal NFwd  : natural := 0;
+
+    -- Packets of the sending core without their first Strip bytes
+    signal StSReady : std_logic                                      := '0';
+    signal StValid  : std_logic                                      := '0';
+    signal StData   : std_logic_vector(DataWidth_g - 1 downto 0)     := (others => '0');
+    signal StKeep   : std_logic_vector(DataWidth_g / 8 - 1 downto 0) := (others => '0');
+    signal StLast   : std_logic                                      := '0';
+    signal StUser   : std_logic_vector(0 downto 0)                   := "0";
 
 begin
 
@@ -98,6 +114,14 @@ begin
             M_Last    <= Inj_Last;
             M_User    <= Inj_User;
             S_Ready   <= '0';
+        elsif Strip > 0 then
+            M_Valid   <= StValid;
+            Inj_Ready <= '0';
+            M_Data    <= StData;
+            M_Keep    <= StKeep;
+            M_Last    <= StLast;
+            M_User    <= StUser;
+            S_Ready   <= StSReady;
         elsif Drop_v then
             M_Valid   <= '0';
             Inj_Ready <= '0';
@@ -148,6 +172,55 @@ begin
                 end if;
             end if;
         end if;
+    end process;
+
+    -- Strip > 0: a packet of the sending core is received completely, then sent without its first Strip bytes
+    p_strip : process is
+        variable Buf_v : Bytes_t(0 to 2 ** 17 - 1);
+        variable Len_v : natural;
+        variable Pos_v : natural;
+        variable Eep_v : std_logic;
+    begin
+        wait until rising_edge(Clk) and Strip > 0 and Sel = '0';
+        Len_v    := 0;
+        StSReady <= '1';
+
+        loop
+            wait until rising_edge(Clk) and S_Valid = '1';
+
+            for b in 0 to Bytes_c - 1 loop
+                if S_Keep(b) = '1' then
+                    Buf_v(Len_v) := S_Data(8 * b + 7 downto 8 * b);
+                    Len_v        := Len_v + 1;
+                end if;
+            end loop;
+
+            exit when S_Last = '1';
+        end loop;
+
+        Eep_v    := S_User(0);
+        StSReady <= '0';
+        Pos_v    := Strip;
+
+        while Pos_v < Len_v loop
+            StKeep <= (others => '0');
+            StData <= (others => '0');
+
+            for b in 0 to Bytes_c - 1 loop
+                if Pos_v + b < Len_v then
+                    StData(8 * b + 7 downto 8 * b) <= Buf_v(Pos_v + b);
+                    StKeep(b)                      <= '1';
+                end if;
+            end loop;
+
+            StLast    <= '1' when Pos_v + Bytes_c >= Len_v else '0';
+            StUser(0) <= Eep_v when Pos_v + Bytes_c >= Len_v else '0';
+            StValid   <= '1';
+            wait until rising_edge(Clk) and M_Ready = '1';
+            Pos_v     := Pos_v + Bytes_c;
+        end loop;
+
+        StValid <= '0';
     end process;
 
     Dropped   <= NDrop;

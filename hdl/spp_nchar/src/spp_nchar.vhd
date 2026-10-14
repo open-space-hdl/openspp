@@ -101,6 +101,10 @@ architecture rtl of spp_nchar is
 
 begin
 
+    assert DataWidth_g mod 8 = 0
+        report "spp_nchar: DataWidth_g must be a multiple of 8"
+        severity failure;
+
     p_comb : process (all) is
         variable v        : TwoProcess_r;
         variable EepNow_v : std_logic;

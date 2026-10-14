@@ -32,7 +32,7 @@ The core is at **TRL 3**: fully verified by simulation, not yet tested on hardwa
 
 | Item | State |
 | --- | --- |
-| Synthesis on a target device: resources and timing | Open; `lint/synth_check.py` checks the synthesizability of five core configurations with GHDL |
+| Synthesis on a target device: resources and timing | Open; `lint/synth_check.py` checks the synthesizability of the core (also at the bounds of its generics) and of the N-Char adapter with GHDL |
 | Hardware test with a SpaceWire or SpaceFibre port and independent CCSDS packet equipment | Open |
 | Code coverage with QuestaSim | Done: [coverage.md](coverage.md) |
 | Several qualities of service (optional QoS Requirement parameter, SPP 3.3.2.4) | Not planned; one quality of service |

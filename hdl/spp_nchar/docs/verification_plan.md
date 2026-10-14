@@ -13,7 +13,9 @@ through two adapters).
 | --- | --- | --- |
 | `spp_nchar_tb` | none (DUT in the testbench) | `spp_nchar` at 100 MHz, a stream source and a sink on each of the four streams |
 
-VUnit configurations `w8`, `w24`, `w32`, `w128` run every test with the link widths 8 to 128 bits.
+VUnit configurations `w8`, `w16`, ... `w128` run every test with every link width from 8 to 128 bits in steps of 8.
+`lint/synth_check.py` synthesizes the adapter at 8 and 128 bits and requires that a width that is not a multiple of 8
+(12 bits) stops with the message of its assertion.
 
 ## 3. Test cases
 

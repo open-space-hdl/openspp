@@ -29,7 +29,7 @@ library uvvm_util;
 package spp_tb_stream_pkg is
 
     constant TbUserBits_c : natural := 256;
-    constant TbChannels_c : natural := 64;
+    constant TbChannels_c : natural := 128;
 
     subtype TbUser_t is std_logic_vector(TbUserBits_c - 1 downto 0);
 
