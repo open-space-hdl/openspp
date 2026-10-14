@@ -1,10 +1,9 @@
 # OpenSPP User Guide
 
 This guide describes how to integrate the OpenSPP core `spp_core` into an FPGA design: sources, generics, clock and
-reset, interfaces, the programming sequence, the integration constraints and the conformance statement for
-CCSDS 133.0-B-2 (Annex A, PICS proforma) and ECSS-E-ST-50-53C. The architecture is described in
-[architecture.md](architecture.md), the registers in the generated
-[register map](../hdl/spp_mib/docs/register_map.md).
+reset, interfaces, the programming sequence, the protection scope, the integration constraints and the conformance
+statement for CCSDS 133.0-B-2 (Annex A, PICS proforma) and ECSS-E-ST-50-53C. The architecture is described in
+[architecture.md](architecture.md), the registers in the generated [register map](../hdl/spp_mib/docs/register_map.md).
 
 ## 1. Sources
 
@@ -173,10 +172,38 @@ nothing.
 A write of `TX_TABLE_ENTRY` replaces the whole entry including the Packet Sequence Count. Change the entry of an APID
 while its source sends nothing, or the count of a packet sent between the read and the write is used again.
 
-## 6. Integration constraints
+## 6. Protection scope
+
+The core is designed for radiation environments together with the triple modular redundancy (TMR) of the synthesis
+tool, like the Open Logic ft entities it is built on. It protects the parts in the first rows itself and relies on
+TMR for all other logic:
+
+| Part | Protection | Indication and test |
+| --- | --- | --- |
+| Data and descriptor buffers of every send port and of the receiving end (`olo_ft_fifo_packet`, `olo_ft_fifo_sync`); send and receive APID tables (`olo_ft_ram_sdp_scrub`, scrubbed in idle cycles) | SECDED ECC of the Open Logic ft entities: a single error is corrected, a double error is detected and contained: in a send data buffer the packet ends with an EEP, in the receive data buffer the SDU is delivered with the error bit of `M_Rx_TUser` set; in a descriptor or an APID table entry the SDU is rejected (0x08) or the packet discarded (0x1B). A table entry with a double error stays so until it is written again | `ECC_STATUS` (double error per channel), `ECC_SELECT` and `ECC_COUNT` (SEC and DED counters per channel, channels 0 to 7), `EVENTS.ECC_SEC` and `ECC_DED` with `Irq`, `Err_*` with 0x08 and 0x1B; error injection through the `ECC_INJECT` register |
+| Clock domain crossings and reset synchronisers | None in the core: it runs in one clock domain, and the release of `Rst` is synchronised outside the core (section 3). Use triplicated synchronisers there (`SyncTmr_g` = true, for example `olo_base_reset_gen`): three synchroniser chains and a majority voter. Their registers carry the Synplify attribute `syn_radhardlevel` = `none`, so the TMR of the synthesis tool adds no voters between the stages | none |
+| State machines | Recovery state through the `when others` branch and the reset | none |
+| All other logic: registers of the control and data paths, counters, pointers, pipeline registers | TMR of the synthesis tool (for example `syn_radhardlevel` = `tmr` with Synplify, or the equivalent setting of the tool chain). The core adds no protection of its own for this logic; without TMR, an upset in it is not covered | synthesis report |
+
+The integrator:
+
+- enables the TMR of the synthesis tool for the core and the logic around it,
+- checks in the synthesis report that TMR was applied, that the synchroniser chains of the crossings were not
+  triplicated a second time, and that no register-based storage meant to be protected by TMR was inferred as a RAM
+  primitive,
+- requests safe state machines, so that synthesis keeps the `when others` branches (AMD Vivado: property
+  `FSM_SAFE_STATE` = `default_state` on the state registers; Synplify: attribute `syn_encoding` = `safe`),
+- protects the configuration memory of SRAM-based FPGAs by scrubbing; this is part of the FPGA design, not of the
+  core.
+
+The ECC paths are verified in simulation by error injection. Whether the protection as a whole meets the
+requirements of a mission is shown by a radiation test with the core in operation (TRL 5).
+
+## 7. Integration constraints
 
 | Constraint | Reason |
 | --- | --- |
+| TMR of the synthesis tool enabled for the core | The core protects its buffers and APID tables itself and relies on TMR for all other logic (section 6) |
 | Serve every receive port, or place a buffer behind a port whose user can stall for long | All receive ports share one receive buffer: a packet waits at its port and the packets behind it wait for it |
 | `TxBufferBytes_g` holds the longest SDU of the port, `RxBufferBytes_g` the longest Space Packet | The core sends and delivers only complete SDUs and packets; longer ones are rejected (0x01) or discarded (0x17) |
 | Hold `TUser` of a send port constant during an SDU | The parameters are recorded with the SDU |
@@ -185,9 +212,9 @@ while its source sends nothing, or the count of a packet sent between the read a
 | The subnetwork returns `S_Link_Ready` flow control to its sender | The receiving end stalls the link while its buffer is full |
 | The ECC injection (`ECC_INJECT`) is for tests only | An injected double error discards an SDU or packet or ends it with an EEP |
 
-## 7. Conformance
+## 8. Conformance
 
-### 7.1 Space Packet Protocol (CCSDS 133.0-B-2, Annex A)
+### 8.1 Space Packet Protocol (CCSDS 133.0-B-2, Annex A)
 
 OpenSPP implements the Packet Service and the Octet String Service at the sending and the receiving end. The support
 column of the requirements list of the PICS proforma (Annex A2.2) for a core with ports of both services:
@@ -225,7 +252,7 @@ The Packet Secondary Header Contents (Table 5-1) are agreed between the users by
 unchanged. The interpretations of the standard are listed in the sections "Interpretation of the standard" of the
 module specifications, for example that the APID parameter of PACKET.request is the APID of the submitted packet.
 
-### 7.2 CCSDS packet transfer protocol (ECSS-E-ST-50-53C)
+### 8.2 CCSDS packet transfer protocol (ECSS-E-ST-50-53C)
 
 With `Encapsulation_g` true the core is initiator and target of the CCSDS packet transfer protocol:
 
@@ -240,7 +267,7 @@ With `Encapsulation_g` true the core is initiator and target of the CCSDS packet
 
 The [compliance matrix](compliance.md) lists the requirements and the test cases of every clause.
 
-## 8. Verification and tools
+## 9. Verification and tools
 
 ```shell
 python run.py -p 4                          # regression with GHDL
