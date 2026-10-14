@@ -15,6 +15,10 @@ document. This page lists the rules and the few OpenSPP-specific additions.
   record, signals `r` and `r_next`, a combinational process starting with `v := r;` and ending with
   `r_next <= v;`, a sequential process with `r <= r_next;` and the reset override at its end.
 - Resets are synchronous and high-active. Only state registers are reset. The core has one clock domain `Clk`.
+- The actual of a port is a name (signal, constant, index or slice of one), never an expression such as
+  `to_integer(...)` or a concatenation: declare a signal or constant of the port's subtype and associate it. QuestaSim
+  with full optimisation can give the implicit signal of an expression actual a range that matches neither the port
+  nor the expression and stop the simulation.
 - Every data path between blocks is a valid / ready stream (AXI4-Stream handshake semantics) or a valid-only stream
   of one-cycle events where the receiver is never slower than the source.
 - Packet streams carry the first byte of a packet in byte lane 0 (`TData(7:0)`). All bytes of a beat are valid
@@ -87,7 +91,9 @@ names the clauses with their standard (`SPP 4.1.3.5`, `CPTP 5.5.4.4`) or `none`.
   (`spp_tb_pkg.sppTestEnd`).
 - Tests observe ports and management interfaces only, never internal signals.
 - GHDL is the default simulator; QuestaSim (`python run.py --questa`) is used for code coverage
-  ([coverage.md](coverage.md)). Every test passes in both simulators.
+  ([coverage.md](coverage.md)). Every test passes in GHDL and in QuestaSim, in QuestaSim both with code coverage
+  (`--coverage`) and without it: the coverage options reduce the optimisation of the simulator, so only the run
+  without them shows the behaviour of a fully optimised simulation.
 - A side effect is never obtained by calling an impure function and discarding its result: QuestaSim may remove such
   a call. Protected types offer a procedure for it.
 - A random value is drawn into a variable before it is used in the actual of an unconstrained array parameter

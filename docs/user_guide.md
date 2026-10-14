@@ -271,6 +271,7 @@ The [compliance matrix](compliance.md) lists the requirements and the test cases
 
 ```shell
 python run.py -p 4                          # regression with GHDL
+python run.py --questa -p 1                 # regression with QuestaSim, full optimisation
 python run.py --questa --coverage -p 1      # code coverage with QuestaSim
 python lint/lint.py                         # VSG
 python lint/synth_check.py                  # synthesizability of five core configurations with GHDL

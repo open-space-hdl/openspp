@@ -78,6 +78,8 @@ architecture sim of spp_header_th is
     signal RemOut_User   : std_logic_vector(UserBits_c - 1 downto 0);
     signal RemOut_Header : std_logic_vector(8 * MaxHdr_c - 1 downto 0);
     signal RemOut_Empty  : std_logic;
+    -- A signal, not an expression, as the actual of the sink port (docs/conventions.md)
+    signal RemSnk_User   : std_logic_vector(RemSnkUserWidth_c - 1 downto 0);
 
 begin
 
@@ -202,7 +204,9 @@ begin
             In_Data  => RemOut_Data,
             In_Keep  => RemOut_Keep,
             In_Last  => RemOut_Last,
-            In_User  => RemOut_Empty & RemOut_Header & RemOut_User
+            In_User  => RemSnk_User
         );
+
+    RemSnk_User <= RemOut_Empty & RemOut_Header & RemOut_User;
 
 end architecture;

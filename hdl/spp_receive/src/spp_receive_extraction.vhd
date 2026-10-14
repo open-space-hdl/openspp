@@ -64,6 +64,9 @@ architecture rtl of spp_receive_extraction is
     -- SPP 4.3.2.2: the Octet String is the Space Packet without its Packet Primary Header
     constant RemoveBytes_c : natural  := choose(OctetString_g, PrimaryHeaderBytes_c, 0);
     constant MaxRemove_c   : positive := choose(OctetString_g, PrimaryHeaderBytes_c, 1);
+    -- A name, not an expression, as the actual of the port (docs/conventions.md)
+    constant RemoveSlv_c   : std_logic_vector(log2ceil(MaxRemove_c + 1) - 1 downto 0) :=
+        std_logic_vector(to_unsigned(RemoveBytes_c, log2ceil(MaxRemove_c + 1)));
 
     signal M_ValidInt : std_logic;
     signal M_LastInt  : std_logic;
@@ -86,7 +89,7 @@ begin
             In_Keep        => In_Keep,
             In_Last        => In_Last,
             In_User        => In_User,
-            In_RemoveBytes => std_logic_vector(to_unsigned(RemoveBytes_c, log2ceil(MaxRemove_c + 1))),
+            In_RemoveBytes => RemoveSlv_c,
             Out_Valid      => M_ValidInt,
             Out_Ready      => M_Ready,
             Out_Data       => M_Data,

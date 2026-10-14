@@ -48,6 +48,10 @@ end entity;
 ---------------------------------------------------------------------------------------------------
 architecture sim of spp_mib_th is
 
+    -- Initial table entries: send path enabled, receive path enabled (names as actuals, docs/conventions.md)
+    constant TxInit_c : std_logic_vector(TxEntryWidth_c - 1 downto 0) := "100" & x"0000";
+    constant RxInit_c : std_logic_vector(RxEntryWidth_c - 1 downto 0) := '1' & x"00000";
+
     signal ArAddr      : std_logic_vector(10 downto 0);
     signal ArValid     : std_logic;
     signal ArReady     : std_logic;
@@ -246,7 +250,7 @@ begin
         port map (
             Clk            => Clk,
             Rst            => Rst,
-            Init_Value     => "100" & x"0000",
+            Init_Value     => TxInit_c,
             Init_Busy      => TxBusy,
             A_Valid        => TxA_Valid,
             A_Ready        => TxA_Ready,
@@ -284,7 +288,7 @@ begin
         port map (
             Clk         => Clk,
             Rst         => Rst,
-            Init_Value  => '1' & x"00000",
+            Init_Value  => RxInit_c,
             Init_Busy   => RxBusy,
             A_Valid     => RxA_Valid,
             A_Ready     => RxA_Ready,
