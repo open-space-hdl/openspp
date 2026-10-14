@@ -84,6 +84,9 @@ names the clauses with their standard (`SPP 4.1.3.5`, `CPTP 5.5.4.4`) or `none`.
 ## Verification
 
 - VUnit runs every test (`run.py`); UVVM supplies VVCs, BFMs, checks, randomisation and functional coverage.
+  VUnit 5.0.0.dev7 appends the generics of every GHDL simulation to one shared `ghdl.sim_flags` list, so a test
+  would inherit the generics it does not set from earlier tests: `run.py` gives every simulation its own copy and
+  stops when a GHDL command carries other generics than those of its configuration.
 - The harness (`_th`) contains clocks, reset, the DUT and the VVCs, the testbench (`_tb`) contains one
   `if run("<test id>") then` block per test case of the verification plan. The test IDs of the plan and the names
   in `run(...)` are identical.
