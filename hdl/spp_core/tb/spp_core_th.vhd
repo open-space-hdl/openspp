@@ -8,7 +8,7 @@
 ---------------------------------------------------------------------------------------------------
 -- Test harness of the core: two cores A and B whose links are connected through link models, stream
 -- sources and sinks on all user ports, injectors into both link inputs, an AXI4-Lite master VVC per
--- core and monitors of the error event outputs.
+-- core, monitors of the error event outputs and statistics of the link and send ports.
 --
 -- Documentation: hdl/spp_core/docs/verification_plan.md
 
@@ -30,6 +30,7 @@ library olo;
 
 library work;
     use work.spp_pkg.all;
+    use work.spp_tb_streamvar_pkg.all;
     use work.spp_core_tb_pkg.all;
 
 ---------------------------------------------------------------------------------------------------
@@ -339,6 +340,36 @@ begin
         end process;
 
         Cores(c).Irq <= Irq(c);
+
+        -- Beats and packets of the link ports and the send ports with their times, for the throughput test
+        p_link_stats : process (Clk) is
+        begin
+            if rising_edge(Clk) then
+
+                for p in 0 to NumPorts_c - 1 loop
+                    if TxValid(c)(p) = '1' and TxReady(c)(p) = '1' then
+                        SppTbStore_v.addBeat(ChTxIn_c + NumPorts_c * c + p,
+                                             bytesOfKeep(TxKeep(c)((p + 1) * Bytes_c - 1 downto p * Bytes_c)), now);
+                        if TxLast(c)(p) = '1' then
+                            SppTbStore_v.addPacket(ChTxIn_c + NumPorts_c * c + p);
+                        end if;
+                    end if;
+                end loop;
+
+                if LoValid(c) = '1' and LoReady(c) = '1' then
+                    SppTbStore_v.addBeat(ChLinkOut_c + c, bytesOfKeep(LoKeep(c)), now);
+                    if LoLast(c) = '1' then
+                        SppTbStore_v.addPacket(ChLinkOut_c + c);
+                    end if;
+                end if;
+                if LiValid(c) = '1' and LiReady(c) = '1' then
+                    SppTbStore_v.addBeat(ChLinkIn_c + c, bytesOfKeep(LiKeep(c)), now);
+                    if LiLast(c) = '1' then
+                        SppTbStore_v.addPacket(ChLinkIn_c + c);
+                    end if;
+                end if;
+            end if;
+        end process;
 
     end generate;
 

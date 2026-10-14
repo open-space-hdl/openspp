@@ -38,12 +38,17 @@ package spp_core_tb_pkg is
 
     -- Stream channels: send port p of core A / B, receive port p of core A / B, injectors into the link
     -- inputs of core A / B
-    constant ChTxA_c  : natural := 0;
-    constant ChTxB_c  : natural := 4;
-    constant ChRxA_c  : natural := 16;
-    constant ChRxB_c  : natural := 20;
-    constant ChInjA_c : natural := 8;
-    constant ChInjB_c : natural := 9;
+    constant ChTxA_c     : natural := 0;
+    constant ChTxB_c     : natural := 4;
+    constant ChRxA_c     : natural := 16;
+    constant ChRxB_c     : natural := 20;
+    constant ChInjA_c    : natural := 8;
+    constant ChInjB_c    : natural := 9;
+    -- Statistics only (beats and packets with their times): link output and link input of core c, send port p
+    -- of core c
+    constant ChLinkOut_c : natural := 32;
+    constant ChLinkIn_c  : natural := 34;
+    constant ChTxIn_c    : natural := 36;
 
     type NatArray_t is array (natural range <>) of natural;
 
