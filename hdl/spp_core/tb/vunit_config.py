@@ -24,10 +24,13 @@ ADDRESS = range(0, 17)
 # Packets held by a send buffer and by the receive buffer: the minimum and a value that is not a power of two
 PACKETS = [2, 5]
 # Bounds of the buffers (specification CO-GN-02 to CO-GN-04): the smallest buffer at 8 bits, the largest buffer
-# that is ever written with two packets at 8 bits, and the most packets a buffer of 16 beats holds at 32 bits
+# that is ever written with two packets at 8 bits, and the most packets a buffer of 16 beats holds at 32 bits and a
+# buffer of 8192 beats at 8 bits (8192 send packets exceed 2**29 beats of written data: the bound of CO-GN-03 is
+# above every valid depth)
 BUFFERS = {"bufmin_w8": {"DataWidth_g": 8, "BufferBeats_g": 8, "TxMaxPackets_g": 2, "RxMaxPackets_g": 2},
            "bufmax_w8": {"DataWidth_g": 8, "BufferBeats_g": 262144, "TxMaxPackets_g": 2, "RxMaxPackets_g": 2},
-           "pktmax_w32": {"DataWidth_g": 32, "BufferBeats_g": 16, "TxMaxPackets_g": 16, "RxMaxPackets_g": 8}}
+           "pktmax_w32": {"DataWidth_g": 32, "BufferBeats_g": 16, "TxMaxPackets_g": 16, "RxMaxPackets_g": 8},
+           "pktmax_w8": {"DataWidth_g": 8, "BufferBeats_g": 8192, "TxMaxPackets_g": 8192, "RxMaxPackets_g": 1170}}
 # Lower bound of the Maximum Packet Length, round robin and a Target Logical Address other than the defaults
 LIMITS = {"MaxLength_g": 7, "RoundRobin_g": True, "Tla_g": 0x20}
 # Idle cores with the IEEE warnings enabled: no metavalue warning after the table initialisation

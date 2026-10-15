@@ -40,9 +40,11 @@ CONFIGS = [("spp_core", {}),
                          "TxMaxPackets_g": "2", "RxMaxPackets_g": "2"}),
            ("spp_core", {"DataWidth_g": "128", "TxBufferBytes_g": "262144", "RxBufferBytes_g": "262144",
                          "TxMaxPackets_g": "2", "RxMaxPackets_g": "2"}),
-           # Most packets in buffers of 16 beats at 32 bits
+           # Most packets in buffers of 16 beats at 32 bits and of 8192 beats at 8 bits
            ("spp_core", {"DataWidth_g": "32", "TxBufferBytes_g": "64", "RxBufferBytes_g": "64", "TxMaxPackets_g": "16",
                          "RxMaxPackets_g": "8"}),
+           ("spp_core", {"DataWidth_g": "8", "TxBufferBytes_g": "8192", "RxBufferBytes_g": "8192",
+                         "TxMaxPackets_g": "8192", "RxMaxPackets_g": "1170"}),
            ("spp_nchar", {"DataWidth_g": "8"}),
            ("spp_nchar", {"DataWidth_g": "128"})]
 # Outside the bounds, with the text that the assertion must report
