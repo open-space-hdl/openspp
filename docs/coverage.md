@@ -27,18 +27,21 @@ Closure rules:
 
 ## 2. Result
 
-The full regression without code coverage passed on 2026-10-14 on HDL identical to this version (Open Logic
-4.7.0-ft.6 changes no file the core uses). The coverage numbers below were collected with 160 tests on 27d1d24; since
-then the testbenches of TC-CO-12 and TC-AD-03 and the port actual in spp_receive_extraction.vhd have changed.
+Runs on 2026-10-15 with Open Logic 4.7.0-ft.6, both on the same HDL:
 
-Run on 2026-10-14: 160 tests (68 test cases in their configurations), all passed. Numbers are
-covered/total bins per file; bold marks a metric with misses. The FSM columns of `spp_send_assembly.vhd` count both
-of its state machines; section 4 explains the misses.
+- the complete regression of 321 tests (71 test cases in their configurations) on commit af774dd, without and with
+  code coverage, all passed;
+- the configuration `pktmax_w8`, added on commit 711a29a (no source or testbench change against af774dd besides the
+  configuration list), without and with code coverage, passed.
+
+The numbers below are the merge (`vcover merge`) of the coverage database of the 321 tests and of the `pktmax_w8` run:
+322 tests. Numbers are covered/total bins per file; bold marks a metric with misses. The FSM columns of
+`spp_send_assembly.vhd` count both of its state machines; section 4 explains the misses.
 
 | File | Statements | Branches | FSM States | FSM Transitions | Conditions | Expressions |
 | --- | --- | --- | --- | --- | --- | --- |
 | `spp_apid_table/src/spp_apid_table.vhd` | 62/62 | 41/41 | 4/4 | 7/7 | 11/11 | 4/4 |
-| `spp_core/src/spp_core.vhd` | 16/16 | 2/2 |  |  |  |  |
+| `spp_core/src/spp_core.vhd` | 18/18 | 4/4 |  |  |  |  |
 | `spp_encapsulation/src/spp_decapsulation.vhd` | 45/45 | 25/25 | 3/3 | 3/3 | 10/10 | 2/2 |
 | `spp_encapsulation/src/spp_encapsulation.vhd` | 26/26 | 12/12 |  |  |  |  |
 | `spp_header/src/spp_header_insert.vhd` | 91/91 | 45/45 | 4/4 | **9/10** | 7/7 |  |
@@ -54,7 +57,7 @@ of its state machines; section 4 explains the misses.
 | `spp_send/src/spp_send_assembly.vhd` | 124/124 | 50/50 | **3/7** | **2/11** | 8/8 | 8/8 |
 | `spp_send/src/spp_send_buffer.vhd` | 67/67 | 38/38 |  |  | 10/10 | 2/2 |
 | `spp_send/src/spp_send_mux.vhd` | 4/4 | 4/4 |  |  |  | 2/2 |
-| Total | 1013/1014 (99.9 %) | 495/495 (100.0 %) | 17/21 (81.0 %) | 25/36 (69.4 %) | 96/96 (100.0 %) | 37/38 (97.4 %) |
+| Total | 1015/1016 (99.9 %) | 497/497 (100.0 %) | 17/21 (81.0 %) | 25/36 (69.4 %) | 96/96 (100.0 %) | 37/38 (97.4 %) |
 
 Every statement except one function of the package, every branch and every condition is covered. The remaining
 misses are listed in section 4: one statement, one expression term, two state machine transitions that cannot occur,
@@ -76,6 +79,7 @@ Each gap was closed by a new or an extended test; one guard that could not be fa
 | Register file: a guard on the generic `SpwAddrBytes_g` in the access to the address bytes, constant per instance | Replaced by the loop bound `SpwAddrBytes_g - 1` (no address byte without `SpwAddrBytes_g`), same behaviour |
 | Register file: RX_TABLE_APID never read; TABLE_STATUS written with only one of the overrun bits; a read of RX_TABLE_ENTRY while the receive table is busy | TC-MG-04 extended, with a holding client of the receive table in the harness; TC-CO-10 reads RX_TABLE_APID |
 | APID table: reset in the cycle of a read (`Read_s`) | TC-TB-05 extended |
+| The bound of CO-GN-03 for more than 2^29 written beats (`spp_core.vhd`, function `writtenBeats`) was not reached by the regression of 321 tests | New configuration `pktmax_w8`: 8192 send packets in buffers of 8192 beats at 8 bits |
 | Header insertion: a guard on the header index that cannot be false in its branch (a beat of header bytes only is not wider than the header) | Replaced by the loop bound `minimum(Bytes_c, MaxHeaderBytes_g)`, same behaviour |
 
 ## 4. Remaining misses

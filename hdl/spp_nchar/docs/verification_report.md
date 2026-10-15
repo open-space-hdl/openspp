@@ -18,8 +18,9 @@ of the receive direction needed no more cycles than characters at every width.
 
 The core tests TC-CO-01, TC-CO-03 and TC-CO-05 pass with both links through two adapters (configuration `nchar_w32`).
 
-QuestaSim (Questa Sim Microchip Edition 2024.3): the same tests pass in the regression with code coverage
-(`python run.py --questa --coverage -p 1`); the coverage is in [docs/coverage.md](../../../docs/coverage.md).
+QuestaSim (Questa Sim Microchip Edition 2024.3), on 2026-10-15: the same tests pass in the regression without code
+coverage (`python run.py --questa -p 1`) and with it (`python run.py --questa --coverage -p 1`); the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Summary
 

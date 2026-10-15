@@ -62,8 +62,9 @@ elaborated and synthesized (configurations in the verification plan, section 2).
 | `Tla_g` | 8 bits | 0xFE, 0x20 | 0xFE, 0x20 |
 | `ClkFreqHz_g` | real, no effect | 100.0e6 | 100.0e6 |
 
-QuestaSim (Questa Sim Microchip Edition 2024.3): the same tests pass in the regression with code coverage
-(`python run.py --questa --coverage -p 1`); the coverage is in [docs/coverage.md](../../../docs/coverage.md).
+QuestaSim (Questa Sim Microchip Edition 2024.3), on 2026-10-15: the same tests pass in the regression without code
+coverage (`python run.py --questa -p 1`) and with it (`python run.py --questa --coverage -p 1`); the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Summary
 
