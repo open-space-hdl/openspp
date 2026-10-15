@@ -35,7 +35,8 @@ document. This page lists the rules and the few OpenSPP-specific additions.
 - VSG 3.27 with the Open Logic configuration in `lint/config` must report no errors and no warnings:
   `python lint/lint.py`. Safe automatic fixes: `python lint/lint.py --fix`.
 - The design must be synthesizable in a technology-independent way: `python lint/synth_check.py` elaborates
-  `spp_core` with the synthesis of GHDL (after `python run.py --compile`) and fails on errors and inferred latches.
+  `spp_core` and `spp_nchar` with the synthesis of GHDL (after `python run.py --compile`) and fails on errors and
+  inferred latches.
   `to_01` and other simulation-only functions are not used in RTL.
 - `compile_order.txt` lists the synthesis sources of the library `openspp` in compile order. After adding, removing
   or renaming a source file, regenerate it with `python run.py --compile-order`; the CI fails when it is out of date.
@@ -104,6 +105,12 @@ names the clauses with their standard (`SPP 4.1.3.5`, `CPTP 5.5.4.4`) or `none`.
   inside such an actual exactly once, so the stimulus and the expected packet would differ.
 - Packets are built and checked by the packet model of `tb/` (own implementation of the Space Packet format of
   SPP 4.1 and of the CPTP packet format of CPTP 5.4); tests never use the RTL of the core to build or check packets.
+- Generic ranges are verified, not only declared: every value of a generic that changes the structure (stream width,
+  port, destination and address counts, booleans) runs in a configuration of its own; the bounds of every other
+  range are elaborated and synthesized (`lint/synth_check.py`), and a value outside them stops the elaboration with
+  an assertion that names the bound (checked by `lint/synth_check.py` as well). A bound that cannot be elaborated on a
+  simulation host is asserted and stated as not elaborated. The verification report of the core lists every generic
+  with its declared range and the simulated and synthesized values.
 - Negative tests inject the fault from the bench (wrong Packet Version Number, length different from the PDL,
   oversized SDU, EEP, non-zero Reserved field, wrong Protocol Identifier, unrouted APID, lost packet, double error
   through the `ErrInj` ports) and expect the counter, the event or the indicator.

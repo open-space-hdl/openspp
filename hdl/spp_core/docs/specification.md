@@ -32,6 +32,18 @@ specified in the modules.
 | CO-SY-07 | Two cores shall exchange packets through two `spp_nchar` adapters and an N-Char stream in each direction, including the end of packet markers EOP and EEP. | CPTP 5.4.1.8 |
 | CO-SY-08 | A send port shall take one beat per clock cycle while its buffer has room. Back-to-back packets of `N` link beats shall leave the link output, be taken at the link input and be delivered at their receive port within max(`N` + 1, 5) clock cycles per packet, also when two send ports alternate. With fixed priority the lower send port shall be served first, with round robin the ports shall alternate. | none (P6) |
 
+### 2.3 Generics
+
+B is `DataWidth_g` / 8, the bytes of a beat. The buffers store complete SDUs and packets (store and forward) in an
+Open Logic packet FIFO whose depth in beats is a power of two.
+
+| ID | Requirement | Clauses |
+| --- | --- | --- |
+| CO-GN-01 | The core shall work with every value of `DataWidth_g` (8 to 128 in steps of 8), of `NumTx_g`, `NumRx_g` and `NumDest_g` (1 to 16) and of `SpwAddrBytes_g` (0 to 16): every send port, destination and receive port shall carry SDUs, and a Target SpaceWire Address of the maximum length shall be transmitted. The registers GENERICS, SERVICES, TX_BUFFER and RX_BUFFER shall show the generics, and CONFIG and MAX_LENGTH shall reset to `RoundRobin_g`, `Tla_g` and `MaxLength_g`. | SPP 4.2.3.1, 4.3.3.1; CPTP 5.3.1 |
+| CO-GN-02 | `TxBufferBytes_g` and `RxBufferBytes_g` shall hold at least max(2, nextpow2(ceil(7 / B))) beats, and the elaboration shall stop with a message otherwise. Reason: the shortest Space Packet has 7 bytes, so a smaller buffer rejects or discards every SDU of the Packet Service and every received packet; the packet FIFO needs two entries. | SPP 4.1.2.2 |
+| CO-GN-03 | `TxBufferBytes_g` shall hold at most nextpow2(`TxMaxPackets_g` x ceil(65542 / B)) beats and `RxBufferBytes_g` at most nextpow2(`RxMaxPackets_g` x ceil(65542 / B)) beats, and the elaboration shall stop with a message otherwise. Reason: the packet FIFO holds at most `MaxPackets_g` packets of at most 65542 bytes, so the beats above this bound are never written. | SPP 4.1.2.2 |
+| CO-GN-04 | `TxMaxPackets_g` shall be 2 to max(2, `TxBufferBytes_g` / B) and `RxMaxPackets_g` 2 to max(2, floor(`RxBufferBytes_g` / B / ceil(7 / B))), and the elaboration shall stop with a message otherwise. Reason: the packet FIFO needs two entries (one packet read, one written); an Octet String of one byte takes one beat of a send buffer and a received Space Packet at least ceil(7 / B) beats, so more entries are never used. | SPP 4.1.2.2 |
+
 ## 3. Configuration parameters
 
 | Generic | Default | Range | Description |
@@ -39,8 +51,8 @@ specified in the modules.
 | `DataWidth_g` | 32 | 8 to 128, multiple of 8 | Width of all streams |
 | `NumTx_g`, `NumRx_g` | 1 | 1 to 16 | Send and receive ports |
 | `TxOctetString_g`, `RxOctetString_g` | all '1' | 16 bits | Service per port: '1' Octet String, '0' Packet Service |
-| `TxBufferBytes_g`, `RxBufferBytes_g` | 4096 | `DataWidth_g`/8 times a power of two | Buffer of each send port, of the reception |
-| `TxMaxPackets_g`, `RxMaxPackets_g` | 8 | 2 to any | SDUs and packets a buffer holds |
+| `TxBufferBytes_g`, `RxBufferBytes_g` | 4096 | B times a power of two; CO-GN-02, CO-GN-03; at most 2^29 beats (asserted, not elaborated) | Buffer of each send port, of the reception |
+| `TxMaxPackets_g`, `RxMaxPackets_g` | 8 | CO-GN-04 | SDUs and packets a buffer holds |
 | `Encapsulation_g` | true | boolean | CPTP layer of ECSS-E-ST-50-53C |
 | `NumDest_g` | 1 | 1 to 16 | Destinations |
 | `SpwAddrBytes_g` | 4 | 0 to 16 | Maximum Target SpaceWire Address |
@@ -48,4 +60,4 @@ specified in the modules.
 | `RoundRobin_g` | '0' | std_logic | Reset value of the multiplexing scheme |
 | `Tla_g` | 0xFE | 8 bits | Reset value of the own Target Logical Address of the filter |
 | `TxPathDefault_g`, `RxPathDefault_g` | true | boolean | Initial managed data paths of all APIDs |
-| `ClkFreqHz_g` | 100.0e6 | real | Clock frequency |
+| `ClkFreqHz_g` | 100.0e6 | real | Frequency of `Clk`; it has no effect, because the scrubbers of the APID tables run free (Open Logic `ScrubPeriod_g` = 0.0) |

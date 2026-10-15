@@ -22,4 +22,4 @@ with `TLast` = '1' and `TData(0)` = '0' for EOP or '1' for EEP.
 
 | Generic | Default | Range | Description |
 | --- | --- | --- | --- |
-| `DataWidth_g` | 32 | 8 to 128, multiple of 8 | Width of the link streams |
+| `DataWidth_g` | 32 | 8 to 128, multiple of 8 (another value stops the elaboration) | Width of the link streams |

@@ -2,11 +2,11 @@
 
 ## 1. Test results
 
-Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 2 "*spp_core*"`.
+Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `python run.py -p 1 "*spp_core*"`.
 
 | Testbench | Tests | Passed |
 | --- | --- | --- |
-| `spp_core_tb` | 12 test cases in 31 configurations | 31 |
+| `spp_core_tb` | 14 test cases in 130 runs (configurations of the verification plan) | 130 |
 
 Line rate (TC-CO-08): 100 Octet Strings of 1024 bytes reached the receive port of B in 25897 cycles for 25900 link
 beats at 32 bits (the link is the limit) and in 6598 cycles for 6500 link beats at 128 bits (one cycle per packet).
@@ -31,12 +31,40 @@ Throughput (TC-CO-12): every send port took its SDUs at one beat per cycle (7 SD
 the Space Packet of that Octet String delivered at an Octet String port). Every value equals the model of the user
 guide (section 7): max(`N` + `e`, 5) at the sending end and max(ceil(`Lsp` / B) + 1, 5) at the receiving end.
 
-`python lint/synth_check.py` synthesizes `spp_core` with GHDL in five configurations (default; without the CPTP
+`python lint/synth_check.py` synthesizes `spp_core` with GHDL in eleven configurations (default; without the CPTP
 layer; without address bytes and default paths; three ports of both services at 128 bits with four destinations;
-16 ports, 16 destinations and 16 address bytes at 8 bits) without errors and without latches.
+16 ports, 16 destinations and 16 address bytes at 8 bits; `MaxLength_g` 7, `RoundRobin_g` '1' and `Tla_g` 0x20;
+buffers of 8 beats at 8 bits; buffers of 262144 beats at 8 bits and of 16384 beats at 128 bits with two packets;
+buffers of 16 beats at 32 bits with 16 and 8 packets; buffers of 8192 beats at 8 bits with 8192 and 1170 packets)
+without errors and without latches. Outside the bounds the
+synthesis stops with the message of the bound: a send buffer of 4 bytes at 8 bits (CO-GN-02), buffers of 524288
+beats at 8 bits with two packets (CO-GN-03), one packet in a send buffer and 9 packets in a receive buffer of 16 beats
+at 32 bits (CO-GN-04).
 
-QuestaSim (Questa Sim Microchip Edition 2024.3): the same tests pass in the regression with code coverage
-(`python run.py --questa --coverage -p 1`); the coverage is in [docs/coverage.md](../../../docs/coverage.md).
+Generic ranges: every value of a generic that changes the structure is simulated, the bounds of the other ranges are
+elaborated and synthesized (configurations in the verification plan, section 2).
+
+| Generic | Declared range | Simulated | Synthesized |
+| --- | --- | --- | --- |
+| `DataWidth_g` | 8 to 128, multiple of 8 | every value | 8, 32, 128 |
+| `NumTx_g` | 1 to 16 | every value | 1, 3, 16 |
+| `NumRx_g` | 1 to 16 | every value | 1, 3, 16 |
+| `NumDest_g` | 1 to 16 | every value | 1, 4, 16 |
+| `SpwAddrBytes_g` | 0 to 16 | every value | 0, 4, 16 |
+| `Encapsulation_g` | boolean | true, false | true, false |
+| `TxOctetString_g`, `RxOctetString_g` | one bit per port | '1' and '0' (port 1 Packet Service) | all '1', port 1 '0' |
+| `TxPathDefault_g`, `RxPathDefault_g` | boolean | true, false | true, false |
+| `TxBufferBytes_g`, `RxBufferBytes_g` | CO-GN-02, CO-GN-03; at most 2^29 beats | 8 beats at 8 bits (minimum), 16, 1024, 4096 and 8192 beats, 262144 beats at 8 bits with two packets (maximum) | 8 beats at 8 bits, 16, 1024, 4096, 8192 beats, 262144 beats at 8 bits and 16384 beats at 128 bits with two packets; 2^29 beats asserted, not elaborated (memory of a simulation host) |
+| `TxMaxPackets_g` | CO-GN-04 | 2, 5, 8, 16, 8192 (maxima of 16 and 8192 beats) | 2, 8, 16, 8192 |
+| `RxMaxPackets_g` | CO-GN-04 | 2, 5, 8, 1170 (maxima of 16 beats at 32 bits and 8192 beats at 8 bits) | 2, 8, 1170 |
+| `MaxLength_g` | 7 to 65542 | 7, 65542 | 7, 65542 |
+| `RoundRobin_g` | '0', '1' | '0', '1' | '0', '1' |
+| `Tla_g` | 8 bits | 0xFE, 0x20 | 0xFE, 0x20 |
+| `ClkFreqHz_g` | real, no effect | 100.0e6 | 100.0e6 |
+
+QuestaSim (Questa Sim Microchip Edition 2024.3), on 2026-10-15: the same tests pass in the regression without code
+coverage (`python run.py --questa -p 1`) and with it (`python run.py --questa --coverage -p 1`); the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Summary
 
@@ -47,6 +75,8 @@ Findings:
 
 | Finding | Resolution |
 | --- | --- |
+| Most values of the structure generics had never run at core level (three ports, four destinations, four address bytes, widths 32, 64 and 128); `spp_nchar` was not synthesized by `lint/synth_check.py`; the buffer generics had no declared bounds | Every value of `DataWidth_g`, `NumTx_g`, `NumRx_g`, `NumDest_g` and `SpwAddrBytes_g` runs in a configuration of its own, the bounds of the buffer generics are derived from the design and asserted (CO-GN-01 to CO-GN-04); all pass without a change of the data path |
+| One packet per buffer stopped the elaboration with a range error inside Open Logic before the assertion of the core could report the bound | The buffers get at least two packets, so that the assertion of CO-GN-04 reports the value |
 | The error event output reports one event per cycle (the lowest source index); simultaneous events at 128 bits are all counted, but only one appears on the output | Behaviour as specified (MG-IF-03); the tests check the counters exactly |
 | GHDL synthesis aborted on index ranges of packed port vectors selected by a variable port number | Port selection written as loops over the ports (`spp_send_assembly`) |
 | Under QuestaSim four core tests failed with stimulus and expected packets of different lengths: a random length drawn by an impure call inside the actual of an unconstrained array parameter was not evaluated exactly once | The lengths are drawn into a variable before the call; rule added to [conventions.md](../../../docs/conventions.md) |

@@ -17,15 +17,14 @@ of [Open Logic](https://github.com/open-logic/open-logic) (SECDED ECC, scrubbing
 and has no flight heritage; see [what the levels mean](https://openspacehdl.org/trl/) and the next steps in the
 [roadmap](docs/roadmap.md#technology-readiness).
 
-The core is complete and verified in simulation (GHDL and QuestaSim, 69 test cases at unit and core level in 163 test
-runs over stream widths of 8 to 128 bits, branch and condition coverage closed, the remaining misses justified in
-[docs/coverage.md](docs/coverage.md)); the
-[compliance matrix](docs/compliance.md) traces every clause of CCSDS 133.0-B-2 and ECSS-E-ST-50-53C in scope to its
-requirements and test cases. Two cores exchange both services through link models in both directions, also through
-the N-Char adapter, at one beat per clock cycle; injected link faults, malformed packets and double bit errors are
-detected and reported with their reason. The [user guide](docs/user_guide.md) contains the conformance statement with
-the PICS proforma of CCSDS 133.0-B-2 Annex A. Synthesis results on a target device and a hardware test are open; see
-[docs/roadmap.md](docs/roadmap.md).
+The core is complete and verified in simulation (GHDL and QuestaSim, 71 test cases at unit and core level in 322 test
+runs over every stream width, port, destination and address count, branch and condition coverage closed, the remaining
+misses justified in [docs/coverage.md](docs/coverage.md)); the [compliance matrix](docs/compliance.md) traces every
+clause of CCSDS 133.0-B-2 and ECSS-E-ST-50-53C in scope to its requirements and test cases. Two cores exchange both
+services through link models in both directions, also through the N-Char adapter, at one beat per clock cycle; injected
+link faults, malformed packets and double bit errors are detected and reported with their reason. The
+[user guide](docs/user_guide.md) contains the conformance statement with the PICS proforma of CCSDS 133.0-B-2 Annex A.
+Synthesis results on a target device and a hardware test are open; see [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 

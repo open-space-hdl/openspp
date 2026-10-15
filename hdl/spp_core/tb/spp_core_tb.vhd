@@ -53,7 +53,16 @@ entity spp_core_tb is
         Encapsulation_g : boolean  := true;
         NChar_g         : boolean  := false;
         PathDefault_g   : boolean  := true;
-        SpwAddrBytes_g  : natural  := 4
+        SpwAddrBytes_g  : natural  := 4;
+        NumTx_g         : positive := 3;
+        NumRx_g         : positive := 3;
+        NumDest_g       : positive := 4;
+        BufferBeats_g   : natural  := 0;
+        TxMaxPackets_g  : positive := 8;
+        RxMaxPackets_g  : positive := 8;
+        MaxLength_g     : positive := 65542;
+        RoundRobin_g    : boolean  := false;
+        Tla_g           : natural  := 16#FE#
     );
 end entity;
 
@@ -63,7 +72,8 @@ end entity;
 architecture sim of spp_core_tb is
 
     constant Bytes_c       : positive := DataWidth_g / 8;
-    constant BufferBeats_c : positive := choose(DataWidth_g > 32, 1024, 4096);
+    -- Send and receive buffers: BufferBeats_g beats, by default 4096 up to 32 bits and 1024 above
+    constant BufferBeats_c : positive := choose(BufferBeats_g > 0, BufferBeats_g, choose(DataWidth_g > 32, 1024, 4096));
     -- Bytes of the CPTP header of a destination without Target SpaceWire Address
     constant CptpBytes_c   : natural := 4 * boolean'pos(Encapsulation_g);
     -- Lengths of the throughput test: Octet Strings and Space Packets
@@ -100,6 +110,11 @@ begin
         variable Ua1_v    : natural;
         variable Ua2_v    : natural;
         variable Ua3_v    : natural;
+        variable Ua_v     : natural;
+        variable N_v      : natural;
+        variable Strip_v  : natural;
+        variable Addr_v   : std_logic_vector(127 downto 0);
+        variable Srv_v    : std_logic_vector(31 downto 0);
 
         -- Register access of core c
         procedure regWrite (
@@ -163,17 +178,22 @@ begin
             regRead(c, RegRxTableEntry_c);
         end procedure;
 
-        -- Destination d of core c
+        -- Destination d of core c; addr holds the address bytes from bit 0 on, 32 bits per DEST_ADDR register
         procedure dest (
             c    : natural;
             d    : natural;
             tla  : natural;
             ua   : natural;
-            len  : natural                       := 0;
-            addr : std_logic_vector(31 downto 0) := x"00000000") is
+            len  : natural          := 0;
+            addr : std_logic_vector := x"00000000") is
+            constant Addr_c : std_logic_vector(addr'length - 1 downto 0) := addr;
         begin
             regWrite(c, RegDestCtrl_c + d * RegDestStride_c, word(len * 2 ** 16 + ua * 2 ** 8 + tla));
-            regWrite(c, RegDestAddr0_c + d * RegDestStride_c, addr);
+
+            for k in 0 to addr'length / 32 - 1 loop
+                regWrite(c, RegDestAddr0_c + d * RegDestStride_c + 4 * k, Addr_c(32 * k + 31 downto 32 * k));
+            end loop;
+
         end procedure;
 
         -- Octet String on send port p of core tx (0 A, 1 B) to receive port q of the other core; the count of the
@@ -238,9 +258,12 @@ begin
         procedure waitAll (timeout : time := 5 ms) is
         begin
 
-            for p in 0 to NumPorts_c - 1 loop
+            for p in 0 to NumTx_g - 1 loop
                 tbWaitEmpty(ChTxA_c + p, timeout, "send port " & to_string(p) & " of core A");
                 tbWaitEmpty(ChTxB_c + p, timeout, "send port " & to_string(p) & " of core B");
+            end loop;
+
+            for p in 0 to NumRx_g - 1 loop
                 tbWaitEmpty(ChRxA_c + p, timeout, "receive port " & to_string(p) & " of core A");
                 tbWaitEmpty(ChRxB_c + p, timeout, "receive port " & to_string(p) & " of core B");
             end loop;
@@ -426,10 +449,13 @@ begin
                     regWrite(1, RegConfig_c, x"00004004");
                 end if;
 
-                for c in 0 to NumPorts_c - 1 loop
-                    tbSetStall(ChTxA_c + c, 0.2);
-                    tbSetStall(ChRxB_c + c, 0.2);
-                    tbSetStall(ChRxA_c + c, 0.2);
+                for p in 0 to NumTx_g - 1 loop
+                    tbSetStall(ChTxA_c + p, 0.2);
+                end loop;
+
+                for p in 0 to NumRx_g - 1 loop
+                    tbSetStall(ChRxB_c + p, 0.2);
+                    tbSetStall(ChRxA_c + p, 0.2);
                 end loop;
 
                 -- User Application values of the destinations 1, 2 and 3 (none without the CPTP layer)
@@ -463,17 +489,70 @@ begin
                 check_value(Cores(0).Errors + Cores(1).Errors, 0, ERROR, "no error event");
 
             elsif run("test_address_strip") then
-                -- Target SpaceWire Address of three bytes, removed by core B (as a network that delivers it)
-                dest(0, 1, 16#FE#, 16#21#, 3, x"00030201");
+                -- Target SpaceWire Address of the maximum length SpwAddrBytes_g (bytes 1, 2, 3, ...): core B removes
+                -- up to 15 bytes (RX_STRIP), the network the others (as a network that delivers the packet)
+                Addr_v := (others => '0');
+
+                for b in 0 to SpwAddrBytes_g - 1 loop
+                    Addr_v(8 * b + 7 downto 8 * b) := std_logic_vector(to_unsigned(b + 1, 8));
+                end loop;
+
+                dest(0, 1, 16#FE#, 16#21#, SpwAddrBytes_g, Addr_v);
                 txPath(0, 16#123#, 1);
-                regWrite(1, RegConfig_c, x"0000FE30");
+                Strip_v      := minimum(SpwAddrBytes_g, 15);
+                regWrite(1, RegConfig_c, word(16#FE00# + Strip_v * 2 ** 4));
+                LinkAB.Strip <= SpwAddrBytes_g - Strip_v;
 
                 for i in 0 to 9 loop
                     octet(0, 0, 0, 16#123#, tbPayload(10 + 37 * i, i), 16#21#);
                 end loop;
 
                 waitAll;
+                LinkAB.Strip <= 0;
                 regCheck(1, RegRxPackets_c, word(10), "SDUs delivered by B");
+
+            elsif run("test_every_port") then
+                -- Every send port, destination and receive port, one SDU at a time: SDU i leaves send port
+                -- i mod NumTx_g of A through destination i mod NumDest_g and reaches receive port i mod NumRx_g of B
+                N_v := 2 * maximum(NumTx_g, maximum(NumRx_g, NumDest_g));
+
+                for d in 0 to NumDest_g - 1 loop
+                    dest(0, d, 16#FE#, 16#10# + d);
+                end loop;
+
+                for i in 0 to N_v - 1 loop
+                    txPath(0, 16#100# + i, i mod NumDest_g);
+                    rxPath(1, 16#100# + i, i mod NumRx_g);
+                end loop;
+
+                for i in 0 to N_v - 1 loop
+                    Len_v := Rand_v.rand(1, 100);
+                    Ua_v  := (16#10# + i mod NumDest_g) * boolean'pos(Encapsulation_g);
+                    if Octet_c(i mod NumTx_g) = '1' then
+                        octet(0, i mod NumTx_g, i mod NumRx_g, 16#100# + i, tbPayload(Len_v, i), Ua_v);
+                    else
+                        packet(0, i mod NumTx_g, i mod NumRx_g, tbSpacePacket(0, 0, 16#100# + i, 3, 0, tbPayload(Len_v, i)),
+                               Ua_v);
+                    end if;
+                    waitAll;
+                end loop;
+
+                regCheck(0, RegTxPackets_c, word(N_v), "packets sent by A");
+                regCheck(1, RegRxPackets_c, word(N_v), "SDUs delivered by B");
+                check_value(Cores(0).Errors + Cores(1).Errors, 0, ERROR, "no error event");
+
+            elsif run("test_reset_values") then
+                -- The registers that show the generics, and the managed parameters at their reset values
+                Srv_v                             := (others => '0');
+                Srv_v(NumTx_g - 1 downto 0)       := Octet_c(NumTx_g - 1 downto 0);
+                Srv_v(16 + NumRx_g - 1 downto 16) := Octet_c(NumRx_g - 1 downto 0);
+                regCheck(0, RegGenerics_c, word(NumTx_g + NumRx_g * 2 ** 5 + NumDest_g * 2 ** 10 + SpwAddrBytes_g * 2 ** 15 +
+                                                Bytes_c * 2 ** 20 + boolean'pos(Encapsulation_g) * 2 ** 25), "GENERICS");
+                regCheck(0, RegServices_c, Srv_v, "SERVICES");
+                regCheck(0, RegTxBuffer_c, word(Bytes_c * BufferBeats_c), "TX_BUFFER");
+                regCheck(0, RegRxBuffer_c, word(Bytes_c * BufferBeats_c), "RX_BUFFER");
+                regCheck(0, RegConfig_c, word(Tla_g * 2 ** 8 + boolean'pos(RoundRobin_g)), "CONFIG");
+                regCheck(0, RegMaxLength_c, word(MaxLength_g), "MAX_LENGTH");
 
             elsif run("test_idle") then
                 -- Idle cores after the table initialisation: no metavalue reaches the arithmetic of the data paths.
@@ -769,7 +848,15 @@ begin
             BufferBeats_g   => BufferBeats_c,
             NChar_g         => NChar_g,
             PathDefault_g   => PathDefault_g,
-            SpwAddrBytes_g  => SpwAddrBytes_g
+            SpwAddrBytes_g  => SpwAddrBytes_g,
+            NumTx_g         => NumTx_g,
+            NumRx_g         => NumRx_g,
+            NumDest_g       => NumDest_g,
+            TxMaxPackets_g  => TxMaxPackets_g,
+            RxMaxPackets_g  => RxMaxPackets_g,
+            MaxLength_g     => MaxLength_g,
+            RoundRobin_g    => RoundRobin_g,
+            Tla_g           => Tla_g
         )
         port map (
             Clk    => Clk,

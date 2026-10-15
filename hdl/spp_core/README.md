@@ -16,6 +16,6 @@ Tests: `python run.py -p 4 "*spp_core*"`
 | --- | --- |
 | `tb/spp_core_tb.vhd` | VUnit runner with one `run(...)` per test case |
 | `tb/spp_core_th.vhd` | Harness: two cores, link models, optional N-Char adapters, stream models, AXI4-Lite VVCs |
-| `tb/spp_core_tb_link.vhd` | Link model: forward, drop, end with EEP, inject |
+| `tb/spp_core_tb_link.vhd` | Link model: forward, drop, end with EEP, remove leading address bytes, inject |
 | `tb/spp_core_tb_pkg.vhd` | Configuration, channels, records of the link control |
-| `tb/vunit_config.py` | Configurations with and without the CPTP layer and through N-Char adapters |
+| `tb/vunit_config.py` | Configurations with and without the CPTP layer, through N-Char adapters, for every value of the structure generics and at the bounds of the buffer generics |

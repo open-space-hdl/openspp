@@ -41,9 +41,17 @@ entity spp_core_th is
         DataWidth_g     : positive;
         Encapsulation_g : boolean;
         BufferBeats_g   : positive;
-        NChar_g         : boolean := false;
-        PathDefault_g   : boolean := true;
-        SpwAddrBytes_g  : natural := AddrBytes_c
+        NChar_g         : boolean  := false;
+        PathDefault_g   : boolean  := true;
+        SpwAddrBytes_g  : natural  := 4;
+        NumTx_g         : positive := 3;
+        NumRx_g         : positive := 3;
+        NumDest_g       : positive := 4;
+        TxMaxPackets_g  : positive := 8;
+        RxMaxPackets_g  : positive := 8;
+        MaxLength_g     : positive := 65542;
+        RoundRobin_g    : boolean  := false;
+        Tla_g           : natural  := 16#FE#
     );
     port (
         Clk      : out   std_logic := '0';
@@ -67,15 +75,21 @@ architecture sim of spp_core_th is
 
     type Slv_t is array (0 to NumCores_c - 1) of std_logic;
 
-    type PortSlv_t is array (0 to NumCores_c - 1) of std_logic_vector(NumPorts_c - 1 downto 0);
+    type TxSlv_t is array (0 to NumCores_c - 1) of std_logic_vector(NumTx_g - 1 downto 0);
 
-    type PortData_t is array (0 to NumCores_c - 1) of std_logic_vector(NumPorts_c * DataWidth_g - 1 downto 0);
+    type TxData_t is array (0 to NumCores_c - 1) of std_logic_vector(NumTx_g * DataWidth_g - 1 downto 0);
 
-    type PortKeep_t is array (0 to NumCores_c - 1) of std_logic_vector(NumPorts_c * Bytes_c - 1 downto 0);
+    type TxKeep_t is array (0 to NumCores_c - 1) of std_logic_vector(NumTx_g * Bytes_c - 1 downto 0);
 
-    type TxUser_t is array (0 to NumCores_c - 1) of std_logic_vector(NumPorts_c * TxUserWidth_c - 1 downto 0);
+    type TxUser_t is array (0 to NumCores_c - 1) of std_logic_vector(NumTx_g * TxUserWidth_c - 1 downto 0);
 
-    type RxUser_t is array (0 to NumCores_c - 1) of std_logic_vector(NumPorts_c * RxUserWidth_c - 1 downto 0);
+    type RxSlv_t is array (0 to NumCores_c - 1) of std_logic_vector(NumRx_g - 1 downto 0);
+
+    type RxData_t is array (0 to NumCores_c - 1) of std_logic_vector(NumRx_g * DataWidth_g - 1 downto 0);
+
+    type RxKeep_t is array (0 to NumCores_c - 1) of std_logic_vector(NumRx_g * Bytes_c - 1 downto 0);
+
+    type RxUser_t is array (0 to NumCores_c - 1) of std_logic_vector(NumRx_g * RxUserWidth_c - 1 downto 0);
 
     type Data_t is array (0 to NumCores_c - 1) of std_logic_vector(DataWidth_g - 1 downto 0);
 
@@ -100,17 +114,17 @@ architecture sim of spp_core_th is
     type Data8_t is array (0 to NumCores_c - 1) of std_logic_vector(7 downto 0);
 
     signal Rst            : Slv_t;
-    signal TxValid        : PortSlv_t;
-    signal TxReady        : PortSlv_t;
-    signal TxLast         : PortSlv_t;
-    signal TxData         : PortData_t;
-    signal TxKeep         : PortKeep_t;
+    signal TxValid        : TxSlv_t;
+    signal TxReady        : TxSlv_t;
+    signal TxLast         : TxSlv_t;
+    signal TxData         : TxData_t;
+    signal TxKeep         : TxKeep_t;
     signal TxUser         : TxUser_t;
-    signal RxValid        : PortSlv_t;
-    signal RxReady        : PortSlv_t;
-    signal RxLast         : PortSlv_t;
-    signal RxData         : PortData_t;
-    signal RxKeep         : PortKeep_t;
+    signal RxValid        : RxSlv_t;
+    signal RxReady        : RxSlv_t;
+    signal RxLast         : RxSlv_t;
+    signal RxData         : RxData_t;
+    signal RxKeep         : RxKeep_t;
     signal RxUser         : RxUser_t;
     signal LoValid        : Slv_t;
     signal LoReady        : Slv_t;
@@ -177,7 +191,7 @@ begin
     begin
 
         -- User ports
-        g_port : for p in 0 to NumPorts_c - 1 generate
+        g_tx_port : for p in 0 to NumTx_g - 1 generate
 
             i_src : entity work.spp_tb_stream_source
                 generic map (
@@ -194,6 +208,10 @@ begin
                     Out_Last  => TxLast(c)(p),
                     Out_User  => TxUser(c)((p + 1) * TxUserWidth_c - 1 downto p * TxUserWidth_c)
                 );
+
+        end generate;
+
+        g_rx_port : for p in 0 to NumRx_g - 1 generate
 
             i_snk : entity work.spp_tb_stream_sink
                 generic map (
@@ -260,15 +278,20 @@ begin
         i_core : entity work.spp_core
             generic map (
                 DataWidth_g     => DataWidth_g,
-                NumTx_g         => NumPorts_c,
-                NumRx_g         => NumPorts_c,
+                NumTx_g         => NumTx_g,
+                NumRx_g         => NumRx_g,
                 TxOctetString_g => Octet_c,
                 RxOctetString_g => Octet_c,
                 TxBufferBytes_g => Buffer_c,
+                TxMaxPackets_g  => TxMaxPackets_g,
                 RxBufferBytes_g => Buffer_c,
+                RxMaxPackets_g  => RxMaxPackets_g,
                 Encapsulation_g => Encapsulation_g,
-                NumDest_g       => NumDest_c,
+                NumDest_g       => NumDest_g,
                 SpwAddrBytes_g  => SpwAddrBytes_g,
+                MaxLength_g     => MaxLength_g,
+                RoundRobin_g    => choose(RoundRobin_g, '1', '0'),
+                Tla_g           => std_logic_vector(to_unsigned(Tla_g, 8)),
                 TxPathDefault_g => PathDefault_g,
                 RxPathDefault_g => PathDefault_g
             )
@@ -346,12 +369,12 @@ begin
         begin
             if rising_edge(Clk) then
 
-                for p in 0 to NumPorts_c - 1 loop
+                for p in 0 to NumTx_g - 1 loop
                     if TxValid(c)(p) = '1' and TxReady(c)(p) = '1' then
-                        SppTbStore_v.addBeat(ChTxIn_c + NumPorts_c * c + p,
+                        SppTbStore_v.addBeat(ChTxIn_c + MaxPorts_c * c + p,
                                              bytesOfKeep(TxKeep(c)((p + 1) * Bytes_c - 1 downto p * Bytes_c)), now);
                         if TxLast(c)(p) = '1' then
-                            SppTbStore_v.addPacket(ChTxIn_c + NumPorts_c * c + p);
+                            SppTbStore_v.addPacket(ChTxIn_c + MaxPorts_c * c + p);
                         end if;
                     end if;
                 end loop;
@@ -401,6 +424,7 @@ begin
             Sel        => LinkAB.Sel,
             DropTarget => LinkAB.DropTarget,
             EepTarget  => LinkAB.EepTarget,
+            Strip      => LinkAB.Strip,
             Dropped    => StatAB.Dropped,
             Eeped      => StatAB.Eeped,
             Forwarded  => StatAB.Forwarded
@@ -433,6 +457,7 @@ begin
             Sel        => LinkBA.Sel,
             DropTarget => LinkBA.DropTarget,
             EepTarget  => LinkBA.EepTarget,
+            Strip      => LinkBA.Strip,
             Dropped    => StatBA.Dropped,
             Eeped      => StatBA.Eeped,
             Forwarded  => StatBA.Forwarded

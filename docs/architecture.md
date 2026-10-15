@@ -354,7 +354,7 @@ traceability matrix of section 10 is checked by `tools/compliance.py`.
 | Level | Scope | Bench | Checks |
 | --- | --- | --- | --- |
 | Unit | `spp_pkg`, header insertion and removal, APID table, sending end, receiving end, encapsulation, register file, N-Char adapter | `<entity>_th.vhd` (clock, DUT, models) and `<entity>_tb.vhd` (VUnit runner, one `run("test_...")` per test of the verification plan) | UVVM checks, packets compared byte by byte with the SPP and CPTP model |
-| Core | Two cores connected by link models in both directions, also through two N-Char adapters per direction: every send port of one core reaches the receive ports of the other | Stream models on the user ports, an AXI4-Lite VVC on each register file, link models that drop packets, end them with an EEP or inject packets | Both services end to end, asymmetric services, routing by APID, destinations, address removal, loss indicators, every discard and rejection reason through the registers, EEP and double errors end to end, line rate, reset of one core |
+| Core | Two cores connected by link models in both directions, also through two N-Char adapters per direction: every send port of one core reaches the receive ports of the other | Stream models on the user ports, an AXI4-Lite VVC on each register file, link models that drop packets, end them with an EEP or inject packets | Both services end to end, asymmetric services, routing by APID, destinations, address removal, loss indicators, every discard and rejection reason through the registers, EEP and double errors end to end, line rate, reset of one core, every value of the structure generics and the bounds of the buffer generics |
 
 ### Framework
 
@@ -366,8 +366,11 @@ traceability matrix of section 10 is checked by `tools/compliance.py`.
 - Stream source and sink models (`tb/spp_tb_stream_*.vhd`) send and check packets of any length with random stall
   cycles; the sink compares every byte, the byte enables and `TUser` of every beat, and matches packets of several
   sources to their queues. The AXI4-Stream VVC of UVVM is limited to 16 KiB per packet and therefore not used.
-- The link model between two cores drops packets, ends packets with an EEP and injects packets built by the
-  testbench (corrupted header fields, truncated and extended packets).
+- The link model between two cores drops packets, ends packets with an EEP, removes leading address bytes as the
+  routers of a network do and injects packets built by the testbench (corrupted header fields, truncated and extended
+  packets).
+- Every value of the generics that change the structure of the core runs in a configuration of its own, and the
+  bounds of the other generics are elaborated and synthesized; a value outside a bound stops the elaboration.
 - Simulator: GHDL for every test; QuestaSim for code coverage.
 
 ### Rules
