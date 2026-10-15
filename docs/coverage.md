@@ -27,6 +27,10 @@ Closure rules:
 
 ## 2. Result
 
+The full regression without code coverage passed on 2026-10-14 on HDL identical to this version (Open Logic
+4.7.0-ft.6 changes no file the core uses). The coverage numbers below were collected with 160 tests on 27d1d24; since
+then the testbenches of TC-CO-12 and TC-AD-03 and the port actual in spp_receive_extraction.vhd have changed.
+
 Run on 2026-10-14: 160 tests (68 test cases in their configurations), all passed. Numbers are
 covered/total bins per file; bold marks a metric with misses. The FSM columns of `spp_send_assembly.vhd` count both
 of its state machines; section 4 explains the misses.
