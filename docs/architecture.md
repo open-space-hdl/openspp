@@ -48,8 +48,8 @@ are AXI4-Stream and the management interface is AXI4-Lite. The core runs on any 
 
 OpenSPP is an open CCSDS Space Packet Protocol implementation that is based on the Open Logic VHDL Library. The code
 lives in [open-space-hdl/openspp](https://github.com/open-space-hdl/openspp) under the PSI HDL Library License,
-Version 1.0, the licence of Open Logic. Open Logic is pinned to the tag `4.7.0-ft.6` of the branch `fault-tolerant`
-of open-space-hdl/open-logic-ft, the fault-tolerant fork of Open Logic.
+Version 1.0, the licence of Open Logic. Open Logic is pinned to the tag `4.7.0-ft.9` (2b0b02f) of the branch
+`fault-tolerant` of open-space-hdl/open-logic-ft, the fault-tolerant fork of Open Logic.
 
 ### References
 
@@ -59,7 +59,7 @@ of open-space-hdl/open-logic-ft, the fault-tolerant fork of Open Logic.
 | \[CPTP\] | ECSS-E-ST-50-53C, SpaceWire: CCSDS packet transfer protocol | 5 February 2010 |
 | \[PID\] | ECSS-E-ST-50-51C, SpaceWire protocol identification | 5 February 2010 |
 | \[SPW\] | ECSS-E-ST-50-12C Rev.1, SpaceWire: Links, nodes, routers and networks | 15 May 2019 |
-| \[OLO\] | [Open Logic, fault-tolerant fork, branch fault-tolerant](https://github.com/open-space-hdl/open-logic-ft/tree/fault-tolerant) | 4.7.0-ft.6 |
+| \[OLO\] | [Open Logic, fault-tolerant fork, branch fault-tolerant](https://github.com/open-space-hdl/open-logic-ft/tree/fault-tolerant) | 4.7.0-ft.9 (2b0b02f) |
 
 ### Conventions
 
