@@ -73,6 +73,10 @@ package spp_tb_packet_pkg is
         count   : natural;
         data    : TbBytes_t) return TbBytes_t;
 
+    -- CRC-16 with the generator x^16 + x^12 + x^5 + 1 and the initial value all ones, without final
+    -- inversion (ECSS-E-ST-70-41C Annex B.1), over the bytes of data
+    function tbCrc16 (data : TbBytes_t) return natural;
+
     -- CPTP packet (CPTP 5.4.1.1): Target SpaceWire Address, Target Logical Address, Protocol Identifier,
     -- Reserved, User Application and the Space Packet
     function tbCptp (
@@ -288,6 +292,27 @@ package body spp_tb_packet_pkg is
         U_v(0)          := '1' when eep = 1 else '0';
         U_v(4 downto 1) := std_logic_vector(to_unsigned(dest, 4));
         return U_v;
+    end function;
+
+    function tbCrc16 (data : TbBytes_t) return natural is
+        variable Crc_v : unsigned(15 downto 0) := x"FFFF";
+    begin
+
+        -- Bit by bit, the most significant bit of every byte first
+        for i in data'range loop
+            Crc_v := Crc_v xor (unsigned(data(i)) & x"00");
+
+            for b in 0 to 7 loop
+                if Crc_v(15) = '1' then
+                    Crc_v := (Crc_v(14 downto 0) & '0') xor x"1021";
+                else
+                    Crc_v := Crc_v(14 downto 0) & '0';
+                end if;
+            end loop;
+
+        end loop;
+
+        return to_integer(Crc_v);
     end function;
 
 end package body;

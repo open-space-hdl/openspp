@@ -14,7 +14,8 @@ described in [architecture.md](architecture.md), the registers in the generated
 | `openspp` | `hdl/<module>/src/*.vhd` of every module of `component_list.txt` | `compile_order.txt`: the modules in the order of `component_list.txt`, within a module packages first |
 
 All sources are VHDL-2008 and contain no vendor primitive. `spp_nchar` is needed only to connect a SpaceWire port with
-an N-Char stream, such as the OpenWire core.
+an N-Char stream, such as the OpenWire core; `spp_packetizer` only to send data units larger than a packet, for example
+compressed images, as segmented Space Packets (section 4.7).
 
 ## 2. Generics
 
@@ -158,6 +159,54 @@ the end of packet marker as a separate beat with `TLast` = '1' (`TData(0)` = '0'
 beat without valid bytes gets its marker after the bytes of the earlier beats; a link packet without any byte sends
 nothing.
 
+### 4.7 Packetizer (`spp_packetizer`)
+
+`spp_packetizer` is a user of the Packet Service in front of a send port of the core
+([specification](../hdl/spp_packetizer/docs/specification.md),
+[architecture](../hdl/spp_packetizer/docs/architecture.md)). It cuts every data unit of its input into segments of
+`ChunkBytes_g` bytes and sends every segment as one complete Space Packet; the core transfers these packets unchanged.
+A receiver finds the boundaries of the data units from the Sequence Flags alone, without decoding the data.
+
+| Generic | Default | Range | Description |
+| --- | --- | --- | --- |
+| `DataWidth_g` | 32 | 8 to 128, multiple of 8 | Width of the streams, the `DataWidth_g` of the core |
+| `ChunkBytes_g` | 4096 | multiple of `DataWidth_g`/8, at most 65536 less `SecHdrBytes_g` and less 2 with `Crc_g` | Bytes of a segment; the last segment of a data unit holds the rest |
+| `BufferBytes_g` | 8192 | `DataWidth_g`/8 times a power of two, at least `ChunkBytes_g` | Segment buffer. At twice `ChunkBytes_g` the next segment enters while a packet leaves; at `ChunkBytes_g` the input waits while every packet leaves |
+| `MaxChunks_g` | 8 | 2 to 64 | Segments the buffer holds at most (short data units) |
+| `SecHdrBytes_g` | 0 | 0 to 64 | Bytes of the Packet Secondary Header from `SecHdr_Data`; 0 for none |
+| `Crc_g` | false | boolean | CRC of two bytes at the end of every User Data Field |
+
+| Port | Description |
+| --- | --- |
+| `S_*` | Data units: `Valid`, `Ready`, `Data`, `Keep`, `Last` as at a send port; `S_Error` with the last beat marks an aborted data unit. A last beat without byte enables ends the data unit; a data unit without any byte sends nothing |
+| `M_*` | Space Packets, to a send port of the core with `TxOctetString_g` bit = '0' (`TUser` of that port is not used) |
+| `Cfg_Apid`, `Cfg_Type` | APID and Packet Type of the packets |
+| `SecHdr_Data` | Packet Secondary Header, bits 7:0 its first byte: a time code sent as the bytes T0 T1 T2 T3 is applied as `SecHdr_Data` = T3 & T2 & T1 & T0 |
+| `Hdr_Sample` | '1' for one clock cycle per packet: `Cfg_Apid`, `Cfg_Type` and `SecHdr_Data` are sampled at the rising edge of `Clk` that ends this cycle; the first beat of the packet follows at least two cycles later. A time code on `SecHdr_Data` gives the time of that edge |
+| `Aborted` | '1' for one clock cycle per accepted last beat with `S_Error` |
+| `Ecc_Sec`, `Ecc_Ded` | One cycle per corrected or detected error, bit 0 segment buffer, bit 1 descriptors |
+| `ErrInj_Data`, `ErrInj_Desc`, `ErrInj_Double` | Test injection of one or two data-bit errors into the next word written into the buffer or the descriptors |
+
+Every packet carries the Packet Version Number '000', `Cfg_Type`, the Secondary Header Flag '1' when `SecHdrBytes_g` is
+greater than 0, `Cfg_Apid`, the Sequence Flags of its segment ('11' for a data unit of one segment, '01' first,
+'00' continuation, '10' last), the Packet Sequence Count of the instance (0 after the reset, then incremented modulo
+16384) and the Packet Data Length of `SecHdrBytes_g` + segment + 2 with `Crc_g`, minus one. An aborted data unit is
+sent like any other and closed with '10' or '11'; the user counts `Aborted` to report it.
+
+With `Crc_g` the last two bytes of every User Data Field are a CRC over the bytes of the segment: generator
+x^16 + x^12 + x^5 + 1, initial value all ones, no final inversion, the most significant byte first (the parameters of
+the packet error control of ECSS-E-ST-70-41C, Annex B.1). It is computed before the segment is stored, so a receiver
+detects a segment that was corrupted in the buffer. It covers neither header.
+
+The packets are Space Packets of CCSDS 133.0-B-2, not PUS packets: ECSS-E-ST-70-41C uses only the Sequence Flags '11'
+and transfers large data with its service type 13.
+
+A receiver of the packets (a receive port of the Packet Service, or the ground):
+
+1. takes the Sequence Flags: '01' or '11' starts a data unit, '10' or '11' ends it;
+2. checks the Packet Sequence Count of the APID: a gap means a lost segment, and the data unit is incomplete;
+3. with the CRC, checks every segment and discards or marks the data unit of a segment whose CRC does not match.
+
 ## 5. Programming sequence
 
 1. After the reset wait until `TABLE_STATUS.TX_BUSY` and `RX_BUSY` are '0'.
@@ -202,6 +251,17 @@ The integrator:
   `FSM_SAFE_STATE` = `default_state` on the state registers; Synplify: attribute `syn_encoding` = `safe`),
 - protects the configuration memory of SRAM-based FPGAs by scrubbing; this is part of the FPGA design, not of the
   core.
+
+The packetizer `spp_packetizer` protects its segment buffer and descriptors with the same SECDED code. A double error
+is reported on `Ecc_Ded`, and the packet is still sent; this is the protection of the packetizer by design. `Crc_g` is
+the detection at the receiver: the CRC is computed before the buffer, so it exposes a double error in the segment and
+in the length or CRC of its descriptor. A double error in a descriptor gives one of two packets: a length with another
+number of beats makes the Packet Data Length differ from the bytes, and the send port of the core rejects the packet
+(0x04); a length with the same number of beats (an error in its lowest bits) gives a well-formed packet with bytes
+missing or with bytes that were not part of the segment, which the core sends and which, without `Crc_g`, only
+`Ecc_Ded` reports. The packet boundaries in its buffer are kept in flip-flops (TMR of the synthesis tool), so a double
+error never changes the framing. The Packet Secondary Header,
+`Cfg_Apid` and `Cfg_Type` come from the user and are protected neither by the SECDED code nor by the CRC.
 
 The ECC paths are verified in simulation by error injection. Whether the protection as a whole meets the
 requirements of a mission is shown by a radiation test with the core in operation (TRL 5).
@@ -294,6 +354,11 @@ the receive direction the adapter takes one character per clock cycle (TC-AD-03)
 | `Err_*` shows one event per cycle | Events of several sources in the same cycle are all counted; the output and `LAST_ERROR` show the one of the lowest source (send ports, decapsulation, receiving end) |
 | The subnetwork returns `S_Link_Ready` flow control to its sender | The receiving end stalls the link while its buffer is full |
 | The ECC injection (`ECC_INJECT`) is for tests only | An injected double error discards an SDU or packet or ends it with an EEP |
+| Packetizer: its send port and the receive ports of its APID use the Packet Service | SPP 4.1.3.4.2.3: the Octet String Service never carries the Sequence Flags '01', '00' and '10'; a receive port of the Octet String Service discards such packets (0x1A) |
+| Packetizer: its APID is used by no other source on the managed data path, and it is not the Idle APID | The count of the instance is the Packet Sequence Count of the APID (SPP 4.1.3.4.3.3); the packets carry user data |
+| Packetizer: `MAX_LENGTH` of the core and `TxBufferBytes_g` of its send port hold the longest packet, 6 + `SecHdrBytes_g` + `ChunkBytes_g` bytes plus 2 with `Crc_g` | Longer packets are rejected by the send port (0x01); a send buffer of two such packets lets the next packet enter while one leaves |
+| Packetizer: `Cfg_Apid` and `Cfg_Type` change only while the packetizer holds no data | They are sampled per packet; a change inside a data unit would split it between two APIDs |
+| Packetizer: reset it together with the core, or only while no packet is between it and the send port | A packet cut off by the reset of the packetizer would merge with the next one in the send buffer, which the core rejects (0x04) |
 
 ## 9. Conformance
 
@@ -320,7 +385,7 @@ column of the requirements list of the PICS proforma (Annex A2.2) for a core wit
 | SPP-14 | Space Packet | 4.1 | M | Yes |
 | SPP-15 | Packet Primary Header | 4.1.3 | M | Yes |
 | SPP-16 | Packet Data Field | 4.1.4 | M | Yes |
-| SPP-17 | Packet Secondary Header | 4.1.4.2 | C1 | Yes, supplied by the user in the Octet String |
+| SPP-17 | Packet Secondary Header | 4.1.4.2 | C1 | Yes, supplied by the user in the Octet String, or from `SecHdr_Data` by `spp_packetizer` |
 | SPP-18 | User Data Field | 4.1.4.3 | C2 | Yes |
 | SPP-19 | Packet Assembly Function | 4.2.2 | M | Yes |
 | SPP-20 | Packet Transfer Function | 4.2.3 | M | Yes |
@@ -332,8 +397,10 @@ column of the requirements list of the PICS proforma (Annex A2.2) for a core wit
 | SPP-26 | Service Type | Table 5-1 | M | Yes: per port (`TxOctetString_g`, `RxOctetString_g`); the APID tables assign each APID to a port |
 
 The Packet Secondary Header Contents (Table 5-1) are agreed between the users by management; the core passes them
-unchanged. The interpretations of the standard are listed in the sections "Interpretation of the standard" of the
-module specifications, for example that the APID parameter of PACKET.request is the APID of the submitted packet.
+unchanged. The Sequence Flags of segmented user data (4.1.3.4.2.2) are set by the user of the Packet Service; the
+packetizer `spp_packetizer` is such a user (section 4.7), the core itself never segments. The interpretations of the
+standard are listed in the sections "Interpretation of the standard" of the module specifications, for example that
+the APID parameter of PACKET.request is the APID of the submitted packet.
 
 ### 9.2 CCSDS packet transfer protocol (ECSS-E-ST-50-53C)
 
@@ -357,7 +424,7 @@ python run.py -p 4                          # regression with GHDL
 python run.py --questa -p 1                 # regression with QuestaSim, full optimisation
 python run.py --questa --coverage -p 1      # code coverage with QuestaSim
 python lint/lint.py                         # VSG
-python lint/synth_check.py                  # synthesizability of the core and the adapter with GHDL, bounds
+python lint/synth_check.py                  # synthesizability of the core, the adapter and the packetizer, bounds
 python tools/compliance.py --check          # traceability of SPP and CPTP
 python tools/regmap.py --check              # generated register map up to date
 python run.py --compile-order               # compile_order.txt of the synthesis sources

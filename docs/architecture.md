@@ -237,8 +237,9 @@ route by it when the CPTP layer is removed.
 | D12 | Idle Packets (APID 2047) are accepted by the Packet Service only with the SHF '0' and by the Octet String Service only with the SHI '0'; received Idle Packets are discarded and counted unless the register file enables their delivery | SPP 4.1.3.3.3.4; Idle Packets carry no user data (SPP 4.1.4.3.4) |
 | D13 | Header insertion and removal shift the bytes of a stream by a number of bytes that is constant during a packet, in one stage that keeps one beat per clock | Line rate without width conversion (P6) |
 | D14 | The protocol state machines have a defined recovery state: the `when others` branch leads to it from an illegal state where the synthesis tool implements the state machine safe, and the reset input restarts it from any state. Their registers rely on the TMR of the synthesis tool like all other logic ([user guide, section 6](user_guide.md#6-protection-scope)) | Same as OpenWire and OpenRMAP; a corrupted packet is discarded by the checks of the receiving end |
-| D15 | A last beat without byte enables (AXI4-Stream null bytes) ends an SDU or a packet at every stream input of the core and of `spp_nchar`; the SDU or packet consists of the bytes of the earlier beats and leaves without that beat. An SDU without any byte is rejected (0x02), a received packet without any byte is discarded (0x14), and `spp_nchar` sends no marker for a link packet without bytes | AXI4-Stream sources such as width converters can end a packet with such a beat; a Space Packet carries at least one octet in its Packet Data Field (SPP 3.2.3.1, 4.1.4.1.2) |
+| D15 | A last beat without byte enables (AXI4-Stream null bytes) ends an SDU or a packet at every stream input of the core, of `spp_nchar` and of `spp_packetizer`; the SDU or packet consists of the bytes of the earlier beats and leaves without that beat. An SDU without any byte is rejected (0x02), a received packet without any byte is discarded (0x14), `spp_nchar` sends no marker for a link packet without bytes and `spp_packetizer` no Space Packet for a data unit without bytes | AXI4-Stream sources such as width converters can end a packet with such a beat; a Space Packet carries at least one octet in its Packet Data Field (SPP 3.2.3.1, 4.1.4.1.2) |
 | D16 | Registers whose values enter arithmetic or conversions of the data paths are reset, so an idle core evaluates no undefined value | Simulation logs of systems with the core stay free of metavalue warnings; a core test checks it with the IEEE warnings enabled |
+| D17 | User data larger than a packet is segmented by the packetizer `spp_packetizer` in front of a send port of the Packet Service: it builds the complete Space Packet with the Sequence Flags '01', '00', '10' or '11', the Packet Sequence Count of its APID and the Packet Data Length, and the core transfers the packet unchanged. The core itself never segments | Segmentation is a function of the user of the Packet Service (SPP 4.1.3.4.2.1); the Octet String Service never segments (SPP 4.1.3.4.2.3); a receiver finds the boundaries of the user data from the Sequence Flags without decoding it |
 
 ### Clock and reset
 
@@ -260,7 +261,8 @@ delivered once the tables are ready.
 
 ## 7 Building block specifications
 
-The core has 14 building blocks in five groups. Each block lists its responsibility, the Open Logic entities it is
+The core has 14 building blocks in five groups; two entities of their own complement it, the N-Char adapter AD-1
+and the packetizer PT-1. Each block lists its responsibility, the Open Logic entities it is
 built from and the clauses it owns (P1: no clause is owned twice).
 
 ### 7.1 Sending end
@@ -298,13 +300,14 @@ destination index travels in `M_Link_TUser`.
 | MG-1 | Register file | Managed parameters (maximum packet length, multiplexing scheme, destinations, Target Logical Address filter, removal of leading bytes, delivery of Idle Packets), access to both APID tables, counters per reason, error events and interrupt, product information, generated from one register description (`hdl/spp_mib/regs/spp_regs.yml`, `tools/regmap.py`) | `olo_axi_lite_slave` | SPP 5.2 |
 | MG-2 | EDAC monitor | Counts the SEC and DED events of every FT buffer and table, raises an interrupt, injects single and double errors for tests | `olo_ft_ecc_monitor` | none (fault tolerance, P5) |
 
-### 7.5 Common functions and adapter
+### 7.5 Common functions, adapter and packetizer
 
 | ID | Block | Responsibility | Open Logic | Clauses |
 | --- | --- | --- | --- | --- |
 | CM-1 | Header insertion | Inserts a header of a number of bytes that is constant during a packet in front of a stream with `TKeep`, one beat per clock (D13); used by SE-3 and EN-1 | none | none |
 | CM-2 | Header removal | Removes a number of leading bytes that is constant during a packet, one beat per clock (D13); used by EN-2 and RE-3 | none | none |
 | AD-1 | N-Char adapter (`spp_nchar`) | Converts the link stream to and from the N-Char stream of OpenWire: width conversion, EOP or EEP marker beat against `TLast` with the error end of packet flag | `olo_base_wconv_xn2n`, `olo_base_wconv_n2xn` | none (packet end of \[SPW\] 5.6) |
+| PT-1 | Packetizer (`spp_packetizer`) | User of the Packet Service in front of a send port: cuts data units into segments and sends every segment as a Space Packet with the Sequence Flags of its segment, the Packet Sequence Count of the instance, an optional Packet Secondary Header from a port and an optional CRC (D17) | `olo_ft_fifo_packet`, `olo_ft_fifo_sync`, `olo_base_crc`, `spp_header_insert` | none (formats the PACKET.request; involved in SPP 4.1.3.4.2, 4.1.4.2, 4.1.4.3) |
 
 ### Modules
 
@@ -321,18 +324,20 @@ A module is one group of blocks with its own specification, verification plan, t
 | `spp_mib` | MG-1, MG-2 | `spp_mib` |
 | `spp_core` | Top level | `spp_core` |
 | `spp_nchar` | AD-1 | `spp_nchar` |
+| `spp_packetizer` | PT-1 | `spp_packetizer`, `spp_packetizer_segmenter`, `spp_packetizer_trailer` |
 
 ## 8 Open Logic usage
 
 | Open Logic entity | Used in | Purpose |
 | --- | --- | --- |
-| `olo_ft_fifo_packet` | SE-1, RE-1 | Store-and-forward buffer of complete SDUs and packets, drop of rejected packets, ECC |
-| `olo_ft_fifo_sync` | SE-1, RE-1 | Descriptor FIFO: byte length and parameters of every buffered SDU or packet |
+| `olo_ft_fifo_packet` | SE-1, RE-1, PT-1 | Store-and-forward buffer of complete SDUs, packets and segments, drop of rejected packets, ECC |
+| `olo_ft_fifo_sync` | SE-1, RE-1, PT-1 | Descriptor FIFO: byte length and parameters of every buffered SDU, packet or segment |
 | `olo_ft_ram_sdp_scrub` | TB-1, TB-2 | APID tables with ECC and background scrubbing |
 | `olo_base_arb_prio`, `olo_base_arb_rr` | SE-2 | Multiplexing schemes |
 | `olo_axi_lite_slave` | MG-1 | AXI4-Lite access to the register file |
 | `olo_ft_ecc_monitor` | MG-2 | SEC and DED counters per buffer and table, DED sticky flags |
 | `olo_base_wconv_xn2n`, `olo_base_wconv_n2xn` | AD-1 | Width conversion between the link stream and the N-Char stream |
+| `olo_base_crc` | PT-1 | CRC-16 of the segments of the packetizer |
 
 ### Gaps in Open Logic
 
@@ -397,10 +402,10 @@ verification plans, lists the requirements and test cases of every clause.
 | SPP 3.2.3.2, 3.2.3.3 | Secondary header in and placement of the Octet String | SE-3 |  | Unit |
 | SPP 3.2.3.4 | Use of the Octet String Service | SE-1 | RE-3 | Unit |
 | SPP 3.3.1 | Packet Service | SE-3 | RE-2 | Unit |
-| SPP 3.3.2.1, 3.3.2.2 | Space Packet and APID parameters | SE-1 | RE-2 | Unit |
+| SPP 3.3.2.1, 3.3.2.2 | Space Packet and APID parameters | SE-1 | RE-2, PT-1 | Unit |
 | SPP 3.3.2.3 | Packet Loss Indicator | RE-2 | TB-2 | Unit |
 | SPP 3.3.2.4 | QoS Requirement | Not implemented (one quality of service) |  | - |
-| SPP 3.3.3.2 | PACKET.request | SE-1 |  | Unit |
+| SPP 3.3.3.2 | PACKET.request | SE-1 | PT-1 | Unit |
 | SPP 3.3.3.3 | PACKET.indication | RE-2 |  | Unit |
 | SPP 3.4.1 | Octet String Service | SE-3 | RE-3 | Unit |
 | SPP 3.4.2.1, 3.4.2.2 | Octet String and APID parameters | SE-1 | RE-3 | Unit |
@@ -408,17 +413,17 @@ verification plans, lists the requirements and test cases of every clause.
 | SPP 3.4.2.4 | Data Loss Indicator | RE-2 | RE-3 | Unit |
 | SPP 3.4.3.2 | OCTET_STRING.request | SE-1 | SE-3 | Unit |
 | SPP 3.4.3.3 | OCTET_STRING.indication | RE-3 |  | Unit |
-| SPP 4.1.2 | Space Packet structure and length | SE-3 | RE-1 | Unit |
-| SPP 4.1.3.1, 4.1.3.2 | Packet Primary Header, Packet Version Number | SE-3 | RE-1 | Unit |
-| SPP 4.1.3.3.1, 4.1.3.3.2 | Packet Identification Field, Packet Type | SE-3 |  | Unit |
-| SPP 4.1.3.3.3 | Secondary Header Flag | SE-3 | RE-3 | Unit |
-| SPP 4.1.3.3.4 | Application Process Identifier | SE-3 | RE-1, RE-2 | Unit |
-| SPP 4.1.3.4.1, 4.1.3.4.2 | Packet Sequence Control Field, Sequence Flags | SE-3 | RE-3 | Unit |
-| SPP 4.1.3.4.3 | Packet Sequence Count or Packet Name | TB-1 | SE-3 | Unit |
-| SPP 4.1.3.5 | Packet Data Length | SE-3 | RE-1 | Unit |
-| SPP 4.1.4.1 | Packet Data Field | SE-3 | RE-1 | Unit |
-| SPP 4.1.4.2 | Packet Secondary Header | User (contents of the Octet String) | SE-3 | - |
-| SPP 4.1.4.3 | User Data Field | SE-3 |  | Unit |
+| SPP 4.1.2 | Space Packet structure and length | SE-3 | RE-1, PT-1 | Unit |
+| SPP 4.1.3.1, 4.1.3.2 | Packet Primary Header, Packet Version Number | SE-3 | RE-1, PT-1 | Unit |
+| SPP 4.1.3.3.1, 4.1.3.3.2 | Packet Identification Field, Packet Type | SE-3 | PT-1 | Unit |
+| SPP 4.1.3.3.3 | Secondary Header Flag | SE-3 | RE-3, PT-1 | Unit |
+| SPP 4.1.3.3.4 | Application Process Identifier | SE-3 | RE-1, RE-2, PT-1 | Unit |
+| SPP 4.1.3.4.1, 4.1.3.4.2 | Packet Sequence Control Field, Sequence Flags | SE-3 | RE-3, PT-1 | Unit |
+| SPP 4.1.3.4.3 | Packet Sequence Count or Packet Name | TB-1 | SE-3, PT-1 | Unit |
+| SPP 4.1.3.5 | Packet Data Length | SE-3 | RE-1, PT-1 | Unit |
+| SPP 4.1.4.1 | Packet Data Field | SE-3 | RE-1, PT-1 | Unit |
+| SPP 4.1.4.2 | Packet Secondary Header | User (contents of the Octet String or of `SecHdr_Data`) | SE-3, PT-1 | - |
+| SPP 4.1.4.3 | User Data Field | SE-3 | PT-1 | Unit |
 | SPP 4.2.2 | Packet Assembly Function | SE-3 | TB-1 | Unit |
 | SPP 4.2.3.1 | Packet Transfer Function | EN-1 | SE-3 | Unit |
 | SPP 4.2.3.2 | Multiplexing of the packets | SE-2 | MG-1 | Unit |
@@ -452,3 +457,5 @@ verification plans, lists the requirements and test cases of every clause.
 8. Core top level (`spp_core`) with core tests of two cores, the compliance matrix, the synthesizability check and the
    user guide.
 9. N-Char adapter (AD-1) with unit tests against the N-Char model and a core test through the adapter.
+10. Packetizer (PT-1) with unit tests against the SPP model and a core test through a send port and a receive port
+    of the Packet Service.

@@ -123,6 +123,16 @@ package spp_pkg is
     subtype RxDescUa_t is natural range RxDescWidth_c - 1 downto LengthWidth_c + 48;
 
     -----------------------------------------------------------------------------------------------
+    -- Descriptor of a segment of the packetizer: length minus one, first and last segment of its data
+    -- unit, CRC of the segment (the CRC bits are stored only with Crc_g)
+    -----------------------------------------------------------------------------------------------
+    constant PkDescWidth_c : natural := 34;
+    subtype PkDescLen_t is natural range 15 downto 0;
+    constant PkDescFirst_c : natural := 16;
+    constant PkDescLast_c  : natural := 17;
+    subtype PkDescCrc_t is natural range 33 downto 18;
+
+    -----------------------------------------------------------------------------------------------
     -- Error codes (reasons of rejected SDUs and discarded packets)
     -----------------------------------------------------------------------------------------------
     constant ErrCodeWidth_c    : natural   := 5;
@@ -178,6 +188,12 @@ package spp_pkg is
     -- Error injection pattern of a codeword of width bits: bit 0 flipped (single error) or bits 0 and 1
     -- flipped (double error)
     function injPattern (
+        width  : positive;
+        double : std_logic) return std_logic_vector;
+
+    -- Error injection pattern that flips data bits of an Open Logic SECDED codeword of width bits: data
+    -- bit 0 (codeword position 3, single error) or data bits 0 and 1 (positions 3 and 5, double error)
+    function injDataPattern (
         width  : positive;
         double : std_logic) return std_logic_vector;
 
@@ -261,6 +277,18 @@ package body spp_pkg is
         P_v(0) := '1';
         if double = '1' then
             P_v(1) := '1';
+        end if;
+        return P_v;
+    end function;
+
+    function injDataPattern (
+        width  : positive;
+        double : std_logic) return std_logic_vector is
+        variable P_v : std_logic_vector(width - 1 downto 0) := (others => '0');
+    begin
+        P_v(3) := '1';
+        if double = '1' then
+            P_v(5) := '1';
         end if;
         return P_v;
     end function;

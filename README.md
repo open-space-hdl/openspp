@@ -9,7 +9,9 @@ receiving end validates every packet, routes it by its APID to a user port and i
 CCSDS Packet Transfer Protocol (ECSS-E-ST-50-53C) is the transfer layer for SpaceWire and SpaceFibre networks; a generic
 removes it for other subnetworks. All streams are AXI4-Stream ports of 8 to 128 bits, the managed parameters and the
 APID tables are in a register file behind an AXI4-Lite port, and all buffers and tables use the fault-tolerant entities
-of [Open Logic](https://github.com/open-logic/open-logic) (SECDED ECC, scrubbing).
+of [Open Logic](https://github.com/open-logic/open-logic) (SECDED ECC, scrubbing). The packetizer `spp_packetizer` in
+front of a send port cuts data units of any length, for example compressed images, into Space Packets whose Sequence
+Flags mark the segments, with an optional Packet Secondary Header and an optional CRC.
 
 ## Status
 
@@ -24,6 +26,8 @@ clause of CCSDS 133.0-B-2 and ECSS-E-ST-50-53C in scope to its requirements and 
 services through link models in both directions, also through the N-Char adapter, at one beat per clock cycle; injected
 link faults, malformed packets and double bit errors are detected and reported with their reason. The
 [user guide](docs/user_guide.md) contains the conformance statement with the PICS proforma of CCSDS 133.0-B-2 Annex A.
+The packetizer is verified with GHDL (13 test cases in 24 configurations, the bounds of its generics and an integration
+test with the core); its QuestaSim runs and code coverage follow with the next release.
 Synthesis results on a target device and a hardware test are open; see [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
