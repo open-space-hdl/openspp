@@ -26,8 +26,8 @@ clause of CCSDS 133.0-B-2 and ECSS-E-ST-50-53C in scope to its requirements and 
 services through link models in both directions, also through the N-Char adapter, at one beat per clock cycle; injected
 link faults, malformed packets and double bit errors are detected and reported with their reason. The
 [user guide](docs/user_guide.md) contains the conformance statement with the PICS proforma of CCSDS 133.0-B-2 Annex A.
-The packetizer is verified with GHDL (11 test cases in 24 configurations and an integration test with the core); its
-QuestaSim runs and code coverage follow with the next release.
+The packetizer is verified with GHDL (13 test cases in 24 configurations, the bounds of its generics and an integration
+test with the core); its QuestaSim runs and code coverage follow with the next release.
 Synthesis results on a target device and a hardware test are open; see [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
