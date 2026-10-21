@@ -32,6 +32,16 @@ VUnit configurations of `spp_packetizer_tb` (every configuration runs every test
 | `beat1` | 32 | 4 | 8 | 8 | 3 | true |
 | `w128_4k` | 128 | 4096 | 8192 | 8 | 0 | true |
 
+Configurations at the bounds of the ranges, each with the tests that reach the bound:
+
+| Configuration | `DataWidth_g` | `ChunkBytes_g` | `BufferBytes_g` | `MaxChunks_g` | `SecHdrBytes_g` | `Crc_g` | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `max64k` | 128 | 65536 | 65536 | 8 | 0 | false | TC-PT-14 (Packet Data Length 65535) |
+| `maxcrc` | 16 | 65534 | 65536 | 8 | 0 | true | TC-PT-14, TC-PT-07 |
+| `maxsh` | 8 | 65472 | 65536 | 8 | 64 | false | TC-PT-14 |
+| `maxshcrc` | 32 | 65468 | 65536 | 8 | 64 | true | TC-PT-14 (largest multiple of the beat) |
+| `mc64` | 32 | 32 | 512 | 64 | 3 | true | TC-PT-14, TC-PT-01, TC-PT-02 (64 short segments in the buffer) |
+
 `spp_packetizer_core_tb` runs at 32 bits with `ChunkBytes_g` = 64, `SecHdrBytes_g` = 3 and `Crc_g` = true.
 
 `lint/synth_check.py` synthesizes the packetizer at the bounds of every range: `DataWidth_g` 8 and 128,
@@ -46,7 +56,7 @@ smaller than a segment, `MaxChunks_g` = 1 or 65 and `SecHdrBytes_g` = 65 stop wi
 | --- | --- | --- |
 | `test_segmentation` (TC-PT-01) | Data units of 1 byte, one beat, a segment less one byte, one segment, one segment plus one byte, two and three segments plus a part, and 40 random lengths up to five segments, random stalls at input and output: every packet byte-exact (flags, count, length, APID, type, Secondary Header Flag, secondary header, data, CRC) and in order | PT-IF-01, PT-IF-02, PT-SG-01, PT-SG-02, PT-SG-05, PT-HD-01, PT-HD-03, PT-SH-01, PT-SH-02, PT-CR-01, PT-CR-02, PT-BF-01 |
 | `test_count_wrap` (TC-PT-02) | 16390 data units of one byte without stalls: the counts run from 0 to 16383 and continue with 0 to 5 | PT-HD-02 |
-| `test_aborted` (TC-PT-03) | Data units with `S_Error` on the last beat (a data beat and a last beat without byte enables, one and several segments) between normal ones: the packets are those of normal data units, `Aborted` pulses once per aborted data unit and never otherwise; `S_Error` on beats other than the last is ignored | PT-SG-03 |
+| `test_aborted` (TC-PT-03) | Data units with `S_Error` on the last beat (a data beat and a last beat without byte enables, one and several segments, a single partial segment aborted on its data beat) between normal ones: the packets are those of normal data units, `Aborted` pulses once per aborted data unit and never otherwise; `S_Error` on beats other than the last is ignored | PT-SG-03 |
 | `test_null_last` (TC-PT-04) | Data units ending with a last beat without byte enables: after a partial beat, after a full beat inside a segment, directly after a full segment (flags '10' or '11' on that segment) and as the only beat of a data unit (no packet, the count does not change); stalls on both sides | PT-IF-04, PT-SG-02, PT-SG-04 |
 | `test_held_segment` (TC-PT-05) | A full segment without `Last` and a pause of 200 cycles at the input: no `Hdr_Sample` and no output during the pause; the next beat releases the packet with '01'; the same with a last beat without byte enables gives '11' | PT-SG-04 |
 | `test_header_sample` (TC-PT-06) | `Cfg_Apid`, `Cfg_Type` and `SecHdr_Data` change in every clock cycle: every packet carries the values of the sampling edge of its `Hdr_Sample` cycle; one pulse per packet, in packet order, at least two cycles before the first output beat of the packet | PT-HD-01, PT-HD-04, PT-SH-01 |
@@ -55,6 +65,8 @@ smaller than a segment, `MaxChunks_g` = 1 or 65 and `SecHdrBytes_g` = 65 stop wi
 | `test_ecc_double` (TC-PT-09) | Double data-bit error in the buffer: `Ecc_Ded(0)` pulses, the packet leaves with exactly the two data bits flipped, complete and correctly framed, and with `Crc_g` its CRC is that of the original segment; double error in a descriptor: `Ecc_Ded(1)` pulses, the packet leaves with the corrupted length and the beats of its segment; the packets after both errors are byte-exact | PT-BF-02, PT-BF-03 |
 | `test_reset` (TC-PT-10) | Reset with segments in the buffer, a held beat and a packet half output: afterwards no stale beat leaves, the first packet carries count 0 and all further packets are byte-exact | PT-IF-03 |
 | `test_throughput` (TC-PT-11) | 20 data units of three full segments back to back, output always ready: one output beat per cycle within a packet and at most 3 cycles between packets; with `BufferBytes_g` of two segments the input stalls per segment at most the extra output beats of its packet plus 3 cycles (measured and reported in the other configurations) | PT-PF-01, PT-PF-02 |
+| `test_reset_input` (TC-PT-13) | A data unit offered while the reset is active: no beat is accepted during the reset; afterwards the data unit enters completely and its packets are byte-exact | PT-IF-03 |
+| `test_bounds` (TC-PT-14) | Data units of one byte, one segment, one segment and one byte, and two segments: in the bound configurations packets with the Packet Data Length 65535 (and 65533 with the longest secondary header and the CRC at 32 bits), and 64 segments in the buffer | PT-SG-01, PT-SG-02, PT-HD-03, PT-BF-01 |
 | `test_core_packet_service` (TC-PT-12) | Integration: data units through the packetizer, a send port and a receive port of the Packet Service of `spp_core` and the link loop: every Space Packet arrives intact with its Sequence Flags, count, secondary header and CRC | PT-IF-02, PT-SG-02 |
 
 ## 4. Requirement coverage
@@ -63,22 +75,22 @@ smaller than a segment, `MaxChunks_g` = 1 or 65 and `SecHdrBytes_g` = 65 stop wi
 | --- | --- |
 | PT-IF-01 | TC-PT-01 |
 | PT-IF-02 | TC-PT-01, TC-PT-12 |
-| PT-IF-03 | TC-PT-10 |
+| PT-IF-03 | TC-PT-10, TC-PT-13 |
 | PT-IF-04 | TC-PT-04 |
-| PT-SG-01 | TC-PT-01 |
-| PT-SG-02 | TC-PT-01, TC-PT-04, TC-PT-12 |
+| PT-SG-01 | TC-PT-01, TC-PT-14 |
+| PT-SG-02 | TC-PT-01, TC-PT-04, TC-PT-12, TC-PT-14 |
 | PT-SG-03 | TC-PT-03 |
 | PT-SG-04 | TC-PT-04, TC-PT-05 |
 | PT-SG-05 | TC-PT-01 |
 | PT-HD-01 | TC-PT-01, TC-PT-06 |
 | PT-HD-02 | TC-PT-02 |
-| PT-HD-03 | TC-PT-01 |
+| PT-HD-03 | TC-PT-01, TC-PT-14 |
 | PT-HD-04 | TC-PT-06 |
 | PT-SH-01 | TC-PT-01, TC-PT-06 |
 | PT-SH-02 | TC-PT-01 |
 | PT-CR-01 | TC-PT-01, TC-PT-07 |
 | PT-CR-02 | TC-PT-01 |
-| PT-BF-01 | TC-PT-01, TC-PT-08 |
+| PT-BF-01 | TC-PT-01, TC-PT-08, TC-PT-14 |
 | PT-BF-02 | TC-PT-08, TC-PT-09 |
 | PT-BF-03 | TC-PT-08, TC-PT-09 |
 | PT-PF-01 | TC-PT-11 |
@@ -102,3 +114,4 @@ mutations of the RTL (applied outside the repository history and reverted) and t
 | ECC double error | `Ecc_Ded(1)` not raised | TC-PT-09 |
 | ECC injection | No data bit flipped in the buffer | TC-PT-08, TC-PT-09 |
 | Reset | The count is not reset | TC-PT-10 |
+| Reset | `S_Ready` not held at '0' during the reset | TC-PT-13 |

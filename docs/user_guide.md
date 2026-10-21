@@ -181,7 +181,7 @@ A receiver finds the boundaries of the data units from the Sequence Flags alone,
 | `S_*` | Data units: `Valid`, `Ready`, `Data`, `Keep`, `Last` as at a send port; `S_Error` with the last beat marks an aborted data unit. A last beat without byte enables ends the data unit; a data unit without any byte sends nothing |
 | `M_*` | Space Packets, to a send port of the core with `TxOctetString_g` bit = '0' (`TUser` of that port is not used) |
 | `Cfg_Apid`, `Cfg_Type` | APID and Packet Type of the packets |
-| `SecHdr_Data` | Packet Secondary Header, bits 7:0 its first byte |
+| `SecHdr_Data` | Packet Secondary Header, bits 7:0 its first byte: a time code sent as the bytes T0 T1 T2 T3 is applied as `SecHdr_Data` = T3 & T2 & T1 & T0 |
 | `Hdr_Sample` | '1' for one clock cycle per packet: `Cfg_Apid`, `Cfg_Type` and `SecHdr_Data` are sampled at the rising edge of `Clk` that ends this cycle; the first beat of the packet follows at least two cycles later. A time code on `SecHdr_Data` gives the time of that edge |
 | `Aborted` | '1' for one clock cycle per accepted last beat with `S_Error` |
 | `Ecc_Sec`, `Ecc_Ded` | One cycle per corrected or detected error, bit 0 segment buffer, bit 1 descriptors |
@@ -253,10 +253,14 @@ The integrator:
   core.
 
 The packetizer `spp_packetizer` protects its segment buffer and descriptors with the same SECDED code. A double error
-is reported on `Ecc_Ded`, and the packet is still sent: with `Crc_g` the receiver detects the corrupted segment by the
-CRC, which is computed before the buffer. A double error in a descriptor can give a packet whose Packet Data Length
-does not match its bytes; the send port of the core rejects it (0x04). The packet boundaries in its buffer are kept in
-flip-flops (TMR of the synthesis tool), so a double error never changes the framing. The Packet Secondary Header,
+is reported on `Ecc_Ded`, and the packet is still sent; this is the protection of the packetizer by design. `Crc_g` is
+the detection at the receiver: the CRC is computed before the buffer, so it exposes a double error in the segment and
+in the length or CRC of its descriptor. A double error in a descriptor gives one of two packets: a length with another
+number of beats makes the Packet Data Length differ from the bytes, and the send port of the core rejects the packet
+(0x04); a length with the same number of beats (an error in its lowest bits) gives a well-formed packet with bytes
+missing or with bytes that were not part of the segment, which the core sends and which, without `Crc_g`, only
+`Ecc_Ded` reports. The packet boundaries in its buffer are kept in flip-flops (TMR of the synthesis tool), so a double
+error never changes the framing. The Packet Secondary Header,
 `Cfg_Apid` and `Cfg_Type` come from the user and are protected neither by the SECDED code nor by the CRC.
 
 The ECC paths are verified in simulation by error injection. Whether the protection as a whole meets the
@@ -354,6 +358,7 @@ the receive direction the adapter takes one character per clock cycle (TC-AD-03)
 | Packetizer: its APID is used by no other source on the managed data path, and it is not the Idle APID | The count of the instance is the Packet Sequence Count of the APID (SPP 4.1.3.4.3.3); the packets carry user data |
 | Packetizer: `MAX_LENGTH` of the core and `TxBufferBytes_g` of its send port hold the longest packet, 6 + `SecHdrBytes_g` + `ChunkBytes_g` bytes plus 2 with `Crc_g` | Longer packets are rejected by the send port (0x01); a send buffer of two such packets lets the next packet enter while one leaves |
 | Packetizer: `Cfg_Apid` and `Cfg_Type` change only while the packetizer holds no data | They are sampled per packet; a change inside a data unit would split it between two APIDs |
+| Packetizer: reset it together with the core, or only while no packet is between it and the send port | A packet cut off by the reset of the packetizer would merge with the next one in the send buffer, which the core rejects (0x04) |
 
 ## 9. Conformance
 

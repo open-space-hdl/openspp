@@ -25,7 +25,7 @@ the end of the segment.
 | --- | --- | --- |
 | PT-IF-01 | The input shall take data units as an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one data unit per packet of the stream, first byte in lane 0; all beats are full except the last beat of a data unit, whose valid bytes are contiguous from lane 0. `S_Error` with the last beat marks an aborted data unit. | none |
 | PT-IF-02 | The output shall give complete Space Packets as an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one Space Packet per packet of the stream, first byte in lane 0, in the format of a PACKET.request at a Packet Service send port of `spp_core`. | SPP 3.3.2.1, 3.3.3.2 |
-| PT-IF-03 | The reset input shall return the packetizer from any state to an empty state: buffered segments are discarded and the Packet Sequence Count starts at 0 again. | SPP 4.1.3.4.3.4; none (D14) |
+| PT-IF-03 | The reset input shall return the packetizer from any state to an empty state: buffered segments are discarded and the Packet Sequence Count starts at 0 again. While the reset input is '1' the input shall accept no beat. | SPP 4.1.3.4.3.4; none (D14) |
 | PT-IF-04 | A last beat without byte enables shall end the data unit, which consists of the bytes of the earlier beats; a data unit without any byte shall produce no Space Packet. | SPP 4.1.4.1.2; none (D15) |
 
 ### 2.2 Segmentation
@@ -114,7 +114,7 @@ A value outside these ranges stops the elaboration with an assertion that names 
 
 | Element | Protection |
 | --- | --- |
-| Segment buffer, descriptors | SECDED (`olo_ft_*`): single errors corrected, double errors reported on `Ecc_Ded`. A packet with a double error is still sent; with `Crc_g` the receiver detects the corrupted data by the CRC, which is computed before the buffer. |
+| Segment buffer, descriptors | SECDED (`olo_ft_*`): single errors corrected, double errors reported on `Ecc_Ded`. A packet with a double error is still sent. `Crc_g` is the detection at the receiver: the CRC is computed before the buffer, so it exposes a double error in the segment and in the length or CRC of its descriptor; without `Crc_g` such a packet can be well-formed and is reported only on `Ecc_Ded` (architecture, section 5). |
 | Packet boundaries in the buffer | Kept in flip-flops of the Open Logic packet FIFO, covered by the TMR of the synthesis tool: a double error in a data word or a descriptor does not change the framing of the packets. |
 | Packet Secondary Header, `Cfg_Apid`, `Cfg_Type` | Supplied by the user and sampled per packet; protected neither by the SECDED code nor by the CRC. |
 | Count, state machines, other registers | TMR of the synthesis tool; every state machine returns to its idle state from any state. |

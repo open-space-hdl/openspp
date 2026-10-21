@@ -69,12 +69,12 @@ packet before it leaves.
 | State | Action | Next state |
 | --- | --- | --- |
 | `Idle_s` | Waits for a complete segment in the buffer and its descriptor. When both are present: `Hdr_Sample` = '1', the header register takes the Packet Primary Header and `SecHdr_Data`, the CRC register takes the CRC, the descriptor is read and the count is incremented | `Data_s` |
-| `Data_s` | Passes the beats of the segment from the buffer to the header insertion; `Keep` is all ones except for the last beat, whose valid bytes follow from the length | `Idle_s` after the last beat, and in the same cycle the header of the next packet when its segment is complete |
+| `Data_s` | Passes the beats of the segment from the buffer to the header insertion; `Keep` is all ones except for the last beat, whose valid bytes follow from the length | `Idle_s` after the last beat |
 | `others` | Recovery | `Idle_s` |
 
-The header of the next packet is taken at the earliest in the clock cycle in which the last beat of the packet
-before it enters the header insertion. The insertion samples the header register with the first beat of a packet, so
-the register is stable from the moment it is taken until the insertion has used it.
+The header of the next packet is taken in `Idle_s`, at the earliest one clock cycle after the last beat of the
+packet before it has entered the header insertion. The insertion samples the header register with the first beat of a
+packet, so the register is stable from the moment it is taken until the insertion has used it.
 
 Packet Primary Header (`primaryHeader` of `spp_pkg`):
 
@@ -146,9 +146,9 @@ a double error shows its consequence in the packet (codeword positions 3 and 5 o
 | --- | --- |
 | Single error in a segment word or a descriptor | Corrected on reading, `Ecc_Sec` pulse when the word is read |
 | Double error in a segment word | `Ecc_Ded(0)` pulse; the beat leaves as read, the packet is complete and correctly framed; with `Crc_g` the CRC at the receiver does not match |
-| Double error in a descriptor | `Ecc_Ded(1)` pulse; the packet leaves with the fields as read. The number of beats comes from the segment buffer; a corrupted length can make the Packet Data Length differ from the bytes of the packet, which the length check of the send port of `spp_core` rejects (reason 0x04) |
+| Double error in a descriptor | `Ecc_Ded(1)` pulse; the packet leaves with the fields as read and with the beats of its segment in the buffer. A corrupted length that gives another number of beats makes the Packet Data Length differ from the bytes of the packet, which the length check of the send port of `spp_core` rejects (reason 0x04). A corrupted length with the same number of beats (an error in its lowest bits, for example 4095 to 4092 at 32 bits) only changes the valid bytes of the last beat: the packet matches its own Packet Data Length, with bytes of the segment missing or with bytes of the buffer that are not part of it, and the core sends it; with `Crc_g` the receiver detects it by the CRC, without `Crc_g` only `Ecc_Ded(1)` reports it. Corrupted Sequence Flags reach the receiver as an inconsistent flag sequence, a corrupted CRC as a CRC that does not match |
 | Aborted data unit | Segmented and sent as usual (PT-SG-03), `Aborted` pulse |
-| Reset | Both FIFOs and the hold register are emptied, the state machine returns to `Idle_s`, the count to 0 |
+| Reset | Both FIFOs and the hold register are emptied, the state machine returns to `Idle_s`, the count to 0; `S_Ready` is '0' while `Rst` is '1', so no beat offered during the reset is accepted and lost |
 
 ## 6. Resources
 

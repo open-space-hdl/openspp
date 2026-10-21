@@ -144,7 +144,8 @@ begin
         WriteReq_v := r.HValid = '1' and (r.HLast = '1' or Decides_v) and not Block_v;
         Write_v    := WriteReq_v and Seg_Ready = '1';
 
-        if not Block_v and (r.HValid = '0' or Seg_Ready = '1') then
+        -- No beat is accepted during the reset: it would be lost (PT-IF-03)
+        if not Block_v and (r.HValid = '0' or Seg_Ready = '1') and Rst = '0' then
             SReady_v := '1';
         else
             SReady_v := '0';

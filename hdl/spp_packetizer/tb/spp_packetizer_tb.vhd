@@ -265,9 +265,12 @@ begin
             Man_Last  <= last;
             Man_Valid <= '1';
 
-            loop
+            for i in 0 to 9999 loop
                 wait until rising_edge(Clk);
                 exit when S_Ready = '1';
+                if i = 9999 then
+                    alert(ERROR, "manBeat: no S_Ready within 10000 cycles");
+                end if;
             end loop;
 
             Man_Valid <= '0';
@@ -344,6 +347,11 @@ begin
                     N_v    := N_v + i mod 2;
                     Seed_v := Seed_v + 1;
                 end loop;
+
+                -- A data unit of one partial segment, aborted with S_Error on its last data beat: '11'
+                sendUnit(tbPayload(maximum(1, ChunkBytes_g / 2), Seed_v), true);
+                N_v    := N_v + 1;
+                Seed_v := Seed_v + 1;
 
                 -- S_Error on the beats before the last one is ignored
                 Len_v   := 2 * ChunkBytes_g + 3;
@@ -536,9 +544,12 @@ begin
                 sendUnit(tbPayload(6 * ChunkBytes_g + 3, Seed_v));
                 Seed_v := Seed_v + 1;
 
-                loop
+                for i in 0 to 99999 loop
                     wait until rising_edge(Clk);
                     exit when MonPackets >= 1 and M_Valid = '1' and M_Ready = '1' and M_Last = '0';
+                    if i = 99999 then
+                        alert(ERROR, "no packet in progress within 100000 cycles");
+                    end if;
                 end loop;
 
                 tbSetStall(ChSnk_c, 1.0);
@@ -563,6 +574,39 @@ begin
                 Count_v := 0;
                 sendRandom(10, 3 * ChunkBytes_g);
                 waitAll;
+
+            elsif run("test_reset_input") then
+                -- A data unit offered while the reset is active: no beat is accepted during the reset, the data
+                -- unit enters completely afterwards
+                wait until rising_edge(Clk);
+                Rst    <= '1';
+                sendUnit(tbPayload(2 * ChunkBytes_g + 3, Seed_v));
+                Seed_v := Seed_v + 1;
+                N_v    := 0;
+
+                for i in 0 to 19 loop
+                    wait until rising_edge(Clk);
+                    if S_Valid = '1' and S_Ready = '1' then
+                        N_v := N_v + 1;
+                    end if;
+                end loop;
+
+                check_value(N_v, 0, ERROR, "beats accepted during the reset");
+                Rst <= '0';
+                waitAll;
+
+            elsif run("test_bounds") then
+                -- The longest segment of the configuration (the bound configurations reach the Packet Data Length
+                -- 65535): one byte, one segment, one segment and one byte, two segments
+                log(ID_LOG_HDR, "longest packet: Packet Data Length " &
+                    to_string(SecHdrBytes_g + ChunkBytes_g + CrcBytes_c - 1));
+                sendUnit(tbPayload(1, Seed_v));
+                sendUnit(tbPayload(ChunkBytes_g, Seed_v + 1));
+                sendUnit(tbPayload(ChunkBytes_g + 1, Seed_v + 2));
+                sendUnit(tbPayload(2 * ChunkBytes_g, Seed_v + 3));
+                Seed_v := Seed_v + 4;
+                waitAll(80 ms);
+                check_value(MonPackets, 6, ERROR, "packets");
 
             elsif run("test_throughput") then
                 -- Back-to-back full segments without stalls
