@@ -1,6 +1,6 @@
 # spp_packetizer
 
-Packetizer (PK-1): cuts data units of any length into segments and sends every segment as a Space Packet for a send
+Packetizer (PT-1): cuts data units of any length into segments and sends every segment as a Space Packet for a send
 port of the Packet Service of `spp_core`, with the Sequence Flags of its segment, the Packet Sequence Count of the
 instance, an optional Packet Secondary Header and an optional CRC-16.
 

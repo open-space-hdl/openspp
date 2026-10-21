@@ -8,3 +8,4 @@ hdl/spp_encapsulation
 hdl/spp_mib
 hdl/spp_core
 hdl/spp_nchar
+hdl/spp_packetizer

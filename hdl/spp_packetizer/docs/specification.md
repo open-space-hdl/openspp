@@ -3,7 +3,7 @@
 ## 1. Overview
 
 `spp_packetizer` turns a stream of data units of any length, for example compressed images, into Space Packets for
-a send port of `spp_core` that uses the Packet Service (block PK-1 of the architecture). It cuts every data unit into
+a send port of `spp_core` that uses the Packet Service (block PT-1 of the architecture). It cuts every data unit into
 segments of `ChunkBytes_g` bytes and sends every segment as one Space Packet with its own Packet Primary Header:
 the Sequence Flags mark the first, continuation and last segment of a data unit or a data unit of one segment, the
 Packet Sequence Count of the instance numbers the packets, and the Packet Data Length gives the size of the segment.
@@ -23,58 +23,58 @@ the end of the segment.
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-IF-01 | The input shall take data units as an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one data unit per packet of the stream, first byte in lane 0; all beats are full except the last beat of a data unit, whose valid bytes are contiguous from lane 0. `S_Error` with the last beat marks an aborted data unit. | none |
-| PK-IF-02 | The output shall give complete Space Packets as an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one Space Packet per packet of the stream, first byte in lane 0, in the format of a PACKET.request at a Packet Service send port of `spp_core`. | SPP 3.3.2.1, 3.3.3.2 |
-| PK-IF-03 | The reset input shall return the packetizer from any state to an empty state: buffered segments are discarded and the Packet Sequence Count starts at 0 again. | SPP 4.1.3.4.3.4; none (D14) |
-| PK-IF-04 | A last beat without byte enables shall end the data unit, which consists of the bytes of the earlier beats; a data unit without any byte shall produce no Space Packet. | SPP 4.1.4.1.2; none (D15) |
+| PT-IF-01 | The input shall take data units as an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one data unit per packet of the stream, first byte in lane 0; all beats are full except the last beat of a data unit, whose valid bytes are contiguous from lane 0. `S_Error` with the last beat marks an aborted data unit. | none |
+| PT-IF-02 | The output shall give complete Space Packets as an AXI4-Stream of `DataWidth_g` bits with `Keep` and `Last`, one Space Packet per packet of the stream, first byte in lane 0, in the format of a PACKET.request at a Packet Service send port of `spp_core`. | SPP 3.3.2.1, 3.3.3.2 |
+| PT-IF-03 | The reset input shall return the packetizer from any state to an empty state: buffered segments are discarded and the Packet Sequence Count starts at 0 again. | SPP 4.1.3.4.3.4; none (D14) |
+| PT-IF-04 | A last beat without byte enables shall end the data unit, which consists of the bytes of the earlier beats; a data unit without any byte shall produce no Space Packet. | SPP 4.1.4.1.2; none (D15) |
 
 ### 2.2 Segmentation
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-SG-01 | Every data unit shall be cut, in the order of its bytes, into segments of `ChunkBytes_g` bytes and a last segment with the remaining 1 to `ChunkBytes_g` bytes; every segment shall become one Space Packet whose User Data Field holds the bytes of the segment, followed by the CRC when `Crc_g` is set. | SPP 4.1.2.1, 4.1.4.1, 4.1.4.3 |
-| PK-SG-02 | The Sequence Flags of a packet shall be '11' when its data unit has one segment, '01' for the first segment, '00' for a continuation segment and '10' for the last segment of a data unit of two or more segments. | SPP 4.1.3.4.2 |
-| PK-SG-03 | An aborted data unit shall be segmented and sent like any other data unit, its last segment flagged '10' (or '11'); `Aborted` shall be '1' for one clock cycle when its last beat is accepted. | none |
-| PK-SG-04 | A segment of `ChunkBytes_g` bytes that the input does not end with `Last` shall be passed on to the output side when the next beat of its data unit is accepted, so that its Sequence Flags are known. | SPP 4.1.3.4.2 |
-| PK-SG-05 | The Space Packets shall leave in the order of their segments. | SPP 4.1.3.4.3.4 |
+| PT-SG-01 | Every data unit shall be cut, in the order of its bytes, into segments of `ChunkBytes_g` bytes and a last segment with the remaining 1 to `ChunkBytes_g` bytes; every segment shall become one Space Packet whose User Data Field holds the bytes of the segment, followed by the CRC when `Crc_g` is set. | SPP 4.1.2.1, 4.1.4.1, 4.1.4.3 |
+| PT-SG-02 | The Sequence Flags of a packet shall be '11' when its data unit has one segment, '01' for the first segment, '00' for a continuation segment and '10' for the last segment of a data unit of two or more segments. | SPP 4.1.3.4.2 |
+| PT-SG-03 | An aborted data unit shall be segmented and sent like any other data unit, its last segment flagged '10' (or '11'); `Aborted` shall be '1' for one clock cycle when its last beat is accepted. | none |
+| PT-SG-04 | A segment of `ChunkBytes_g` bytes that the input does not end with `Last` shall be passed on to the output side when the next beat of its data unit is accepted, so that its Sequence Flags are known. | SPP 4.1.3.4.2 |
+| PT-SG-05 | The Space Packets shall leave in the order of their segments. | SPP 4.1.3.4.3.4 |
 
 ### 2.3 Packet Primary Header
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-HD-01 | Every packet shall carry the Packet Version Number '000', the Packet Type `Cfg_Type`, the Secondary Header Flag '1' when `SecHdrBytes_g` is greater than 0 and '0' otherwise, and the APID `Cfg_Apid`. | SPP 4.1.3.1, 4.1.3.2, 4.1.3.3 |
-| PK-HD-02 | The Packet Sequence Count of the first packet after the reset shall be 0, and that of every further packet the count of the packet before it plus one, modulo 16384; the count is not set back by anything but the reset. | SPP 4.1.3.4.1, 4.1.3.4.3 |
-| PK-HD-03 | The Packet Data Length shall be `SecHdrBytes_g` plus the number of bytes of the segment, plus 2 when `Crc_g` is set, minus one. | SPP 4.1.3.5 |
-| PK-HD-04 | `Hdr_Sample` shall be '1' for exactly one clock cycle per packet; `Cfg_Apid`, `Cfg_Type` and `SecHdr_Data` shall be sampled at the rising edge of `Clk` that ends this cycle and used for that packet. The cycle shall lie at least two clock cycles before the first output beat of the packet, and the pulses shall follow the order of the packets. | SPP 4.1.4.2.1.4 |
+| PT-HD-01 | Every packet shall carry the Packet Version Number '000', the Packet Type `Cfg_Type`, the Secondary Header Flag '1' when `SecHdrBytes_g` is greater than 0 and '0' otherwise, and the APID `Cfg_Apid`. | SPP 4.1.3.1, 4.1.3.2, 4.1.3.3 |
+| PT-HD-02 | The Packet Sequence Count of the first packet after the reset shall be 0, and that of every further packet the count of the packet before it plus one, modulo 16384; the count is not set back by anything but the reset. | SPP 4.1.3.4.1, 4.1.3.4.3 |
+| PT-HD-03 | The Packet Data Length shall be `SecHdrBytes_g` plus the number of bytes of the segment, plus 2 when `Crc_g` is set, minus one. | SPP 4.1.3.5 |
+| PT-HD-04 | `Hdr_Sample` shall be '1' for exactly one clock cycle per packet; `Cfg_Apid`, `Cfg_Type` and `SecHdr_Data` shall be sampled at the rising edge of `Clk` that ends this cycle and used for that packet. The cycle shall lie at least two clock cycles before the first output beat of the packet, and the pulses shall follow the order of the packets. | SPP 4.1.4.2.1.4 |
 
 ### 2.4 Packet Secondary Header
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-SH-01 | When `SecHdrBytes_g` is greater than 0, every packet shall carry a Packet Secondary Header of `SecHdrBytes_g` bytes, the sampled `SecHdr_Data` with bits 7:0 as its first byte, directly after the Packet Primary Header and before the User Data Field. | SPP 4.1.3.3.3, 4.1.4.2.1.1, 4.1.4.2.1.3 to 4.1.4.2.1.6 |
-| PK-SH-02 | When `SecHdrBytes_g` is 0, no packet shall carry a Packet Secondary Header; the User Data Field follows the Packet Primary Header. | SPP 4.1.3.3.3, 4.1.4.2.1.2, 4.1.4.3.1, 4.1.4.3.2 |
+| PT-SH-01 | When `SecHdrBytes_g` is greater than 0, every packet shall carry a Packet Secondary Header of `SecHdrBytes_g` bytes, the sampled `SecHdr_Data` with bits 7:0 as its first byte, directly after the Packet Primary Header and before the User Data Field. | SPP 4.1.3.3.3, 4.1.4.2.1.1, 4.1.4.2.1.3 to 4.1.4.2.1.6 |
+| PT-SH-02 | When `SecHdrBytes_g` is 0, no packet shall carry a Packet Secondary Header; the User Data Field follows the Packet Primary Header. | SPP 4.1.3.3.3, 4.1.4.2.1.2, 4.1.4.3.1, 4.1.4.3.2 |
 
 ### 2.5 CRC
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-CR-01 | When `Crc_g` is set, the User Data Field of every packet shall end with a CRC of two bytes over the bytes of its segment only: generator polynomial x^16 + x^12 + x^5 + 1, initial value all ones, no final inversion, the most significant byte first. The CRC is computed on the input side, before the segment is stored. | none (parameters of ECSS-E-ST-70-41C Annex B.1) |
-| PK-CR-02 | When `Crc_g` is not set, the User Data Field shall hold the bytes of the segment only. | SPP 4.1.4.3.4 |
+| PT-CR-01 | When `Crc_g` is set, the User Data Field of every packet shall end with a CRC of two bytes over the bytes of its segment only: generator polynomial x^16 + x^12 + x^5 + 1, initial value all ones, no final inversion, the most significant byte first. The CRC is computed on the input side, before the segment is stored. | none (parameters of ECSS-E-ST-70-41C Annex B.1) |
+| PT-CR-02 | When `Crc_g` is not set, the User Data Field shall hold the bytes of the segment only. | SPP 4.1.4.3.4 |
 
 ### 2.6 Buffers and protection
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-BF-01 | Every segment shall be stored completely in a buffer of `BufferBytes_g` bytes, and its length, Sequence Flags and CRC in a descriptor, before its packet is output; the buffer holds up to `MaxChunks_g` segments. Buffer and descriptors shall be protected by a SECDED code. | none (P5) |
-| PK-BF-02 | A single bit error in the buffer or in a descriptor shall be corrected and reported on `Ecc_Sec` (bit 0 buffer, bit 1 descriptor) for one clock cycle. A double bit error shall be reported on `Ecc_Ded` in the same way, and the packet shall still be sent, with the bytes as read from the buffer and the framing of the buffer. | none (P5) |
-| PK-BF-03 | `ErrInj_Data` and `ErrInj_Desc` shall flip one data bit, or two data bits with `ErrInj_Double`, of the next word written into the buffer or into the descriptor memory. | none |
+| PT-BF-01 | Every segment shall be stored completely in a buffer of `BufferBytes_g` bytes, and its length, Sequence Flags and CRC in a descriptor, before its packet is output; the buffer holds up to `MaxChunks_g` segments. Buffer and descriptors shall be protected by a SECDED code. | none (P5) |
+| PT-BF-02 | A single bit error in the buffer or in a descriptor shall be corrected and reported on `Ecc_Sec` (bit 0 buffer, bit 1 descriptor) for one clock cycle. A double bit error shall be reported on `Ecc_Ded` in the same way, and the packet shall still be sent, with the bytes as read from the buffer and the framing of the buffer. | none (P5) |
+| PT-BF-03 | `ErrInj_Data` and `ErrInj_Desc` shall flip one data bit, or two data bits with `ErrInj_Double`, of the next word written into the buffer or into the descriptor memory. | none |
 
 ### 2.7 Performance
 
 | ID | Requirement | Clauses |
 | --- | --- | --- |
-| PK-PF-01 | With the output always ready and the segments complete, the packetizer shall output every packet one beat per clock cycle from its first to its last beat, with at most 3 clock cycles between two packets. | none (P6) |
-| PK-PF-02 | With `BufferBytes_g` at least twice `ChunkBytes_g` and the output always ready, the input shall accept a continuous stream of full segments with at most as many stall cycles per segment as its packet has output beats more than its segment has input beats, plus 3. | none (P6) |
+| PT-PF-01 | With the output always ready and the segments complete, the packetizer shall output every packet one beat per clock cycle from its first to its last beat, with at most 3 clock cycles between two packets. | none (P6) |
+| PT-PF-02 | With `BufferBytes_g` at least twice `ChunkBytes_g` and the output always ready, the input shall accept a continuous stream of full segments with at most as many stall cycles per segment as its packet has output beats more than its segment has input beats, plus 3. | none (P6) |
 
 ## 3. Configuration parameters
 
@@ -91,7 +91,7 @@ A value outside these ranges stops the elaboration with an assertion that names 
 
 | Configuration input | Description |
 | --- | --- |
-| `Cfg_Apid` | APID of the packets (11 bits), sampled per packet (PK-HD-04) |
+| `Cfg_Apid` | APID of the packets (11 bits), sampled per packet (PT-HD-04) |
 | `Cfg_Type` | Packet Type: '0' telemetry, '1' telecommand, sampled per packet |
 | `SecHdr_Data` | Content of the Packet Secondary Header, `8 * SecHdrBytes_g` bits, sampled per packet |
 

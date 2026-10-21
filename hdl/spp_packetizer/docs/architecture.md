@@ -20,8 +20,8 @@ clock cycle when the held beat carries `Last` itself. This answers two questions
 answer alone:
 
 - Is a full segment the last one of its data unit? A segment of `ChunkBytes_g` bytes whose last beat has no `Last`
-  is the last segment only if the next beat is a last beat without byte enables (PK-SG-04).
-- Where does a data unit end that ends with a last beat without byte enables (PK-IF-04, D15)? The held beat becomes
+  is the last segment only if the next beat is a last beat without byte enables (PT-SG-04).
+- Where does a data unit end that ends with a last beat without byte enables (PT-IF-04, D15)? The held beat becomes
   the last beat of the segment; the beat without bytes is not written.
 
 When the held beat is written, `In_Last` of the segment buffer marks the end of a segment: the beat completes
@@ -36,7 +36,7 @@ A data unit without any byte (a last beat without byte enables while the hold re
 A byte counter counts the bytes of the current segment: `DataWidth_g`/8 for every beat except the last beat of a
 data unit, whose bytes follow from `S_Keep`. With `Crc_g` set, `olo_base_crc` processes every beat written into the
 segment buffer (`In_Last` at the end of a segment, `In_Be` the byte enables of the beat) with the parameters of
-PK-CR-01: `Polynomial_g` = x"1021", `InitialValue_g` = x"FFFF", `BitOrder_g` = "MSB_FIRST", `ByteOrder_g` =
+PT-CR-01: `Polynomial_g` = x"1021", `InitialValue_g` = x"FFFF", `BitOrder_g` = "MSB_FIRST", `ByteOrder_g` =
 "LSB_FIRST" (byte lane 0 first). The CRC of a segment is available one clock cycle after its last beat; the
 descriptor is therefore written one clock cycle after the last beat of its segment, with or without CRC.
 
@@ -147,7 +147,7 @@ a double error shows its consequence in the packet (codeword positions 3 and 5 o
 | Single error in a segment word or a descriptor | Corrected on reading, `Ecc_Sec` pulse when the word is read |
 | Double error in a segment word | `Ecc_Ded(0)` pulse; the beat leaves as read, the packet is complete and correctly framed; with `Crc_g` the CRC at the receiver does not match |
 | Double error in a descriptor | `Ecc_Ded(1)` pulse; the packet leaves with the fields as read. The number of beats comes from the segment buffer; a corrupted length can make the Packet Data Length differ from the bytes of the packet, which the length check of the send port of `spp_core` rejects (reason 0x04) |
-| Aborted data unit | Segmented and sent as usual (PK-SG-03), `Aborted` pulse |
+| Aborted data unit | Segmented and sent as usual (PT-SG-03), `Aborted` pulse |
 | Reset | Both FIFOs and the hold register are emptied, the state machine returns to `Idle_s`, the count to 0 |
 
 ## 6. Resources

@@ -16,3 +16,6 @@ hdl/spp_encapsulation/src/spp_decapsulation.vhd
 hdl/spp_mib/src/spp_mib.vhd
 hdl/spp_core/src/spp_core.vhd
 hdl/spp_nchar/src/spp_nchar.vhd
+hdl/spp_packetizer/src/spp_packetizer_trailer.vhd
+hdl/spp_packetizer/src/spp_packetizer_segmenter.vhd
+hdl/spp_packetizer/src/spp_packetizer.vhd
