@@ -91,7 +91,7 @@ it (decision D19 of the core architecture).
 | Register | Reset by | Content |
 | --- | --- | --- |
 | `OValid`, `OData`, `OKeep`, `OLast`, `OUser` | `Rst` (`OValid`) | The beat on `M_Link`; `M_Link_*` are these registers |
-| `Open` | `Rst` | '1' after the transfer of a beat with `OLast` '0', '0' after the transfer of a beat with `OLast` '1': a packet has started on `M_Link` and its last beat is not transferred |
+| `PktOpen` | `Rst` | '1' after the transfer of a beat with `OLast` '0', '0' after the transfer of a beat with `OLast` '1': a packet has started on `M_Link` and its last beat is not transferred |
 | `State` | `Rst` | `Pass_s`: forwards the beats of the core; `End_s`: ends the open packet after `DpRst` and waits for the release |
 
 The destination index of the open packet is `OUser(4:1)` of its last transferred beat; the register keeps it after the
@@ -103,7 +103,7 @@ Signals of the cycle:
 
 - `Hs` = `OValid` and `M_Link_Ready`: the beat in the register is transferred at the edge that ends the cycle.
 - `Free` = not `OValid` or `M_Link_Ready`: the register can take a beat at that edge.
-- `OpenNext` = `Open` when `Hs` is '0', not `OLast` when `Hs` is '1': whether a packet is open after that edge.
+- `OpenNext` = `PktOpen` when `Hs` is '0', not `OLast` when `Hs` is '1': whether a packet is open after that edge.
 
 | State | Condition in the cycle | `S_Pkt_Ready` | At the edge that ends the cycle | Next state |
 | --- | --- | --- | --- | --- |
@@ -113,9 +113,9 @@ Signals of the cycle:
 | `End_s` | `Free` '1' and `OpenNext` '1' | '0' | The EEP beat is loaded: `OData` 0, `OKeep` byte lane 0, `OLast` '1', `OUser` = `OUser(4:1)` & '1' | `End_s` |
 | `End_s` | `Free` '1', `OpenNext` '0', `DpRst` '1' | '0' | `OValid` cleared | `End_s` |
 | `End_s` | `Free` '1', `OpenNext` '0', `DpRst` '0' | '0' | `OValid` cleared | `Pass_s` |
-| any | `Rst` '1' | as above | `OValid` and `Open` cleared, overriding the rows above | `Pass_s` |
+| any | `Rst` '1' | as above | `OValid` and `PktOpen` cleared, overriding the rows above | `Pass_s` |
 
-`Open` takes `OpenNext` at every edge. An illegal state leads to `Pass_s` (`when others`, decision D14).
+`PktOpen` takes `OpenNext` at every edge. An illegal state leads to `Pass_s` (`when others`, decision D14).
 
 `S_Pkt_Ready` is '0' in the cycle that ends with the reset edge of `DpRst`, so the beat that the blocks in front
 present in that cycle is not taken; they are reset at that edge, and the stage takes no beat until it is back in
@@ -126,7 +126,10 @@ changes nothing.
 
 The EEP beat carries one byte because the outputs of the core never carry a beat without valid bytes (decision D15):
 a SpaceWire or SpaceFibre port, the N-Char adapter and width converters can then process it like any last beat. Its
-data byte 0x00 is never delivered: the target discards a packet that ends with an EEP (CPTP 5.5.4.4a).
+data byte 0x00 is a fill byte: a SpaceWire or SpaceFibre port sends the valid bytes of a last beat before its
+end of packet marker (an OpenFibre virtual channel requires at least one), so the far end receives the bytes
+transferred before the reset, the fill byte and the EEP. It is never delivered: the target discards a packet that
+ends with an EEP (CPTP 5.5.4.4a).
 
 ### 5.4 Examples
 
@@ -161,8 +164,8 @@ reset edge.
 | 1 | 0 | - | 0 | `b5` | 1 | Release edge; `b5` transferred, `OpenNext` '0', `Pass_s` |
 | 2 | 0 | - | 1 | - | 1 | |
 
-Between packets (`OValid` '0', `Open` '0') the reset edge only moves the stage to `End_s`, and the release edge back to
-`Pass_s`; `M_Link_Valid` stays '0'. The same holds when the last beat is transferred at the reset edge.
+Between packets (`OValid` '0', `PktOpen` '0') the reset edge only moves the stage to `End_s`, and the release edge
+back to `Pass_s`; `M_Link_Valid` stays '0'. The same holds when the last beat is transferred at the reset edge.
 
 ### 5.5 Rst and the order of the two inputs
 

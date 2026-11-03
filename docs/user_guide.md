@@ -78,9 +78,11 @@ presented until its last beat is transferred.
   (AXI4-Stream). When a packet is open and that beat is not its last, the link output stage then ends the packet with
   one EEP beat: the byte 0x00 in byte lane 0, `TLast`, `M_Link_User(0)` '1' and the destination index of the packet in
   `M_Link_User(4:1)`. The EEP beat comes in the cycle after the reset edge, or in the cycle after the transfer of the
-  pending beat, also while `DpRst` is still applied. No byte of the interrupted packet follows it, and no SDU that was
-  in a send buffer at the reset edge is sent. Between packets, or when the last beat of the packet is pending, `DpRst`
-  sends nothing on `M_Link`.
+  pending beat, also while `DpRst` is still applied. A SpaceWire or SpaceFibre port sends the valid byte of that beat
+  before the EEP (an OpenFibre virtual channel requires at least one valid byte in a last beat), so the far end
+  receives the bytes transferred before the reset, one fill byte 0x00 and the EEP, and discards the packet. No byte
+  of the interrupted packet follows the EEP, and no SDU that was in a send buffer at the reset edge is sent. Between
+  packets, or when the last beat of the packet is pending, `DpRst` sends nothing on `M_Link`.
 - `Rst`: `M_Link_Valid` is '0' from the cycle after the reset edge. A packet that is being sent is cut without its last
   beat and without an EEP, also when `DpRst` is applied at the same time. A subnetwork may join the cut packet to the
   next one; the far end usually discards the joined packet, and the first packet after the reset is lost with it. Use
@@ -95,12 +97,19 @@ presented until its last beat is transferred.
 | Both applied, `Rst` released first, `DpRst` one or more cycles later | No beat | At the release of `DpRst` |
 | Both applied, `DpRst` released first | No beat | At the release of `Rst` |
 
+Reset domains of the interfaces, for the reset groups of a system:
+
+| Interface | Reset by |
+| --- | --- |
+| `M_Link_*` | `Rst` only |
+| `S_Link_*`, `S_Tx_*`, `M_Rx_*`, `S_AxiLite_*`, `Irq`, `Err_*` | `Rst` and `DpRst` |
+
 The N-Char adapter `spp_nchar` belongs to the link: reset it with `Rst` only. It sends the EEP beat as the data
 character 0x00 followed by an EEP marker.
 
 ### 3.2 The other ports during a reset
 
-From the cycle after the reset edge until the release, with either input:
+From the cycle after the reset edge as long as a reset input is '1':
 
 | Port | During the reset | After the release |
 | --- | --- | --- |
@@ -430,6 +439,7 @@ the receive direction the adapter takes one character per clock cycle (TC-AD-03)
 | `DpRst` is synchronous to `Clk` like `Rst`; tie it to '0' or leave it open when it is not used | Both are synchronous resets of the Open Logic convention; `DpRst` has the default '0' |
 | Reset the sources of the send ports and the sinks of the receive ports together with the core, or reset the core only while no SDU is in transfer at its user ports | After a reset the core takes the rest of an interrupted SDU as a new SDU and ends an SDU in delivery without its last beat (section 3.2) |
 | Reset the link side (SpaceWire or SpaceFibre port, `spp_nchar`) with the reset of the link, never with `DpRst` | The EEP that ends an interrupted packet must reach the far end (section 3.1) |
+| The port behind `M_Link` sends the valid bytes of a last beat before its EEP | The far end receives one fill byte 0x00 before the EEP of an interrupted packet and discards the packet (CPTP 5.5.4.4a); a counter of the bytes of discarded packets at the far end counts it |
 | The far end of the link sends nothing to the core while the core is in reset | With the CPTP layer the core discards the beats it takes during a reset without a count; the rest of an interrupted packet is checked as a packet of its own after the release (section 3.2) |
 | No register access while a reset is applied or about to be applied; run the programming sequence after every reset (section 5) | The register port answers no access during a reset, an access accepted before the reset edge gets no response, and every register returns to its reset value |
 
