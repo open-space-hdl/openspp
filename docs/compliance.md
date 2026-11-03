@@ -20,7 +20,7 @@ the standard" of the module specifications.
 | SPP 3.2.3.4 | Use of the Octet String Service | SE-1 | SE-IF-01 | TC-SE-01, TC-SE-14 | Verified |
 | SPP 3.3.1 | Packet Service | SE-3 | CO-SY-01, SE-AS-03 | TC-CO-01, TC-CO-13, TC-SE-04, TC-SE-07, TC-SE-14 | Verified |
 | SPP 3.3.2.1, 3.3.2.2 | Space Packet and APID parameters | SE-1 | PT-IF-02, RE-IF-03, SE-IF-03 | TC-PT-01, TC-PT-12, TC-RE-01, TC-RE-10, TC-SE-04, TC-SE-14 | Verified |
-| SPP 3.3.2.3 | Packet Loss Indicator | RE-2 | CO-SY-03, MG-CN-02, RE-DM-03 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-MG-05, TC-RE-05, TC-RE-10 | Verified |
+| SPP 3.3.2.3 | Packet Loss Indicator | RE-2 | CO-SY-03, MG-CN-02, RE-DM-03 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-CO-15, TC-CO-22, TC-MG-05, TC-RE-05, TC-RE-10 | Verified |
 | SPP 3.3.2.4 | QoS Requirement | Not implemented (one quality of service) | - | - | Not implemented |
 | SPP 3.3.3.2 | PACKET.request | SE-1 | PT-IF-02, SE-IF-01 | TC-PT-01, TC-PT-12, TC-SE-01, TC-SE-14 | Verified |
 | SPP 3.3.3.3 | PACKET.indication | RE-2 | RE-DM-02, RE-IF-02 | TC-RE-01, TC-RE-02, TC-RE-04, TC-RE-10 | Verified |
@@ -36,7 +36,7 @@ the standard" of the module specifications.
 | SPP 4.1.3.3.3 | Secondary Header Flag | SE-3 | PT-SH-01, PT-SH-02, SE-AS-01, SE-BF-03, SE-BF-04 | TC-PT-01, TC-PT-06, TC-SE-01, TC-SE-02, TC-SE-05, TC-SE-07, TC-SE-08, TC-SE-14, TC-SE-15 | Verified |
 | SPP 4.1.3.3.4 | Application Process Identifier | SE-3 | PK-CN-01, RE-RC-02, SE-AS-01 | TC-PK-02, TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
 | SPP 4.1.3.4.1, 4.1.3.4.2 | Packet Sequence Control Field, Sequence Flags | SE-3 | PK-CN-01, PK-FN-01, PT-HD-02, PT-SG-02, PT-SG-04, RE-DM-02, SE-AS-01 | TC-PK-01, TC-PK-02, TC-PT-01, TC-PT-02, TC-PT-04, TC-PT-05, TC-PT-12, TC-PT-14, TC-RE-02, TC-RE-04, TC-RE-10, TC-SE-01, TC-SE-07, TC-SE-14 | Verified |
-| SPP 4.1.3.4.3 | Packet Sequence Count or Packet Name | TB-1 | CO-SY-06, PT-HD-02, PT-IF-03, PT-SG-05, SE-AS-02, SE-BF-04, TB-FN-01 | TC-CO-09, TC-PT-01, TC-PT-02, TC-PT-10, TC-PT-13, TC-SE-01, TC-SE-02, TC-SE-03, TC-SE-08, TC-SE-14, TC-SE-15, TC-TB-02, TC-TB-05 | Verified |
+| SPP 4.1.3.4.3 | Packet Sequence Count or Packet Name | TB-1 | CO-SY-06, PT-HD-02, PT-IF-03, PT-SG-05, SE-AS-02, SE-BF-04, TB-FN-01 | TC-CO-09, TC-CO-22, TC-PT-01, TC-PT-02, TC-PT-10, TC-PT-13, TC-SE-01, TC-SE-02, TC-SE-03, TC-SE-08, TC-SE-14, TC-SE-15, TC-TB-02, TC-TB-05 | Verified |
 | SPP 4.1.3.5 | Packet Data Length | SE-3 | PK-FN-01, PT-HD-03, RE-RC-02, SE-AS-01, SE-BF-03 | TC-PK-01, TC-PT-01, TC-PT-14, TC-RE-03, TC-RE-06, TC-RE-10, TC-RE-11, TC-SE-01, TC-SE-05, TC-SE-07, TC-SE-14, TC-SE-15 | Verified |
 | SPP 4.1.4.1 | Packet Data Field | SE-3 | CO-IF-04, PT-IF-04, PT-SG-01, RE-IF-06, SE-AS-01, SE-BF-04 | TC-CO-11, TC-PT-01, TC-PT-04, TC-PT-14, TC-RE-11, TC-SE-01, TC-SE-02, TC-SE-07, TC-SE-08, TC-SE-14, TC-SE-15 | Verified |
 | SPP 4.1.4.2 | Packet Secondary Header | User (contents of the Octet String or of `SecHdr_Data`) | PT-HD-04, PT-SH-01, PT-SH-02 | TC-PT-01, TC-PT-06 | User obligation |
@@ -46,7 +46,7 @@ the standard" of the module specifications.
 | SPP 4.2.3.2 | Multiplexing of the packets | SE-2 | SE-MX-01 | TC-SE-10, TC-SE-14 | Verified |
 | SPP 4.2.3.3 | Transfer by APID | SE-3 | CO-IF-03, CO-SY-01, SE-AS-04 | TC-CO-01, TC-CO-10, TC-CO-13, TC-SE-01, TC-SE-04, TC-SE-09 | Verified |
 | SPP 4.3.2 | Packet Extraction Function | RE-3 | RE-EX-01 | TC-RE-01, TC-RE-06, TC-RE-10 | Verified |
-| SPP 4.3.3.1 | Packet Reception Function | RE-1 | CO-GN-01, CO-IF-01, RE-IF-01, RE-RC-01 | TC-CO-01, TC-CO-02, TC-CO-07, TC-CO-13, TC-CO-14, TC-RE-01, TC-RE-03, TC-RE-10 | Verified |
+| SPP 4.3.3.1 | Packet Reception Function | RE-1 | CO-GN-01, CO-IF-01, CO-RS-10, RE-IF-01, RE-RC-01 | TC-CO-01, TC-CO-02, TC-CO-07, TC-CO-09, TC-CO-13, TC-CO-14, TC-CO-22, TC-RE-01, TC-RE-03, TC-RE-10 | Verified |
 | SPP 4.3.3.2, 4.3.3.3 | Demultiplexing by APID, delivery by service type | RE-2 | CO-IF-03, CO-SY-01, RE-DM-01, RE-DM-02 | TC-CO-01, TC-CO-10, TC-CO-13, TC-RE-01, TC-RE-02, TC-RE-04, TC-RE-10 | Verified |
 | SPP 5.2 | Protocol configuration parameters | MG-1 | CO-SY-04, MG-CF-01, MG-CF-03 | TC-CO-01, TC-CO-02, TC-CO-03, TC-CO-05, TC-CO-06, TC-CO-10, TC-MG-01, TC-MG-02 | Verified |
 | CPTP 5.1.1, 5.1.2 | CCSDS packet and packet length parameters | SE-1 | SE-BF-02, SE-IF-03 | TC-SE-04, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-14 | Verified |
@@ -55,11 +55,11 @@ the standard" of the module specifications.
 | CPTP 5.2.1, 5.2.2 | CCSDS packet transfer service, CCSDS_PACKET_SEND.request | EN-1 | EN-TX-01, EN-TX-02 | TC-EN-01, TC-EN-04 | Verified |
 | CPTP 5.2.3 | CCSDS_PACKET_RECEIVED.indication | EN-2 | EN-IF-02, RE-IF-03 | TC-EN-02, TC-EN-04, TC-RE-01, TC-RE-10 | Verified |
 | CPTP 5.3 | CCSDS packet transfer protocol fields | EN-1 | CO-GN-01, CO-SY-02, EN-RX-01, EN-RX-02, EN-TX-01, PK-CN-01 | TC-CO-01, TC-CO-02, TC-CO-13, TC-CO-14, TC-EN-01, TC-EN-02, TC-EN-03, TC-EN-04, TC-PK-02 | Verified |
-| CPTP 5.4 | CCSDS packet transfer protocol format | EN-1 | AD-RX-01, AD-TX-01, CO-IF-02, CO-SY-07, EN-IF-01, EN-TX-01 | TC-AD-01, TC-AD-02, TC-AD-03, TC-CO-01, TC-CO-03, TC-CO-05, TC-CO-07, TC-EN-01, TC-EN-04 | Verified |
-| CPTP 5.5.2 | Send request | SE-1 | CO-SY-03, MG-CN-01, MG-IF-03, SE-BF-02, SE-IF-05 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-MG-05, TC-SE-02, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-09, TC-SE-12 | Verified |
-| CPTP 5.5.3 | Transfer packet | EN-1 | EN-TX-01 | TC-EN-01, TC-EN-04 | Verified |
-| CPTP 5.5.4.1 to 5.5.4.3 | Protocol Identifier, Reserved field zero and not zero | EN-2 | EN-IF-03, EN-RX-01, EN-RX-02, MG-CN-01, MG-IF-03 | TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05 | Verified |
-| CPTP 5.5.4.4 | Error end of packet | EN-2 | CO-SY-03, EN-RX-02, EN-RX-03, MG-CN-01, MG-IF-03, RE-IF-04, RE-RC-02 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05, TC-RE-03, TC-RE-04, TC-RE-06, TC-RE-10, TC-RE-11 | Verified |
+| CPTP 5.4 | CCSDS packet transfer protocol format | EN-1 | AD-RX-01, AD-TX-01, CO-IF-02, CO-SY-07, EN-IF-01, EN-TX-01 | TC-AD-01, TC-AD-02, TC-AD-03, TC-CO-01, TC-CO-03, TC-CO-05, TC-CO-07, TC-CO-15, TC-EN-01, TC-EN-04 | Verified |
+| CPTP 5.5.2 | Send request | SE-1 | CO-SY-03, MG-CN-01, MG-IF-03, SE-BF-02, SE-IF-05 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-10, TC-CO-15, TC-CO-22, TC-MG-05, TC-SE-02, TC-SE-05, TC-SE-06, TC-SE-07, TC-SE-09, TC-SE-12 | Verified |
+| CPTP 5.5.3 | Transfer packet | EN-1 | CO-RS-04, CO-RS-05, CO-RS-06, EN-TX-01 | TC-CO-15, TC-CO-16, TC-CO-17, TC-CO-18, TC-CO-22, TC-EN-01, TC-EN-04 | Verified |
+| CPTP 5.5.4.1 to 5.5.4.3 | Protocol Identifier, Reserved field zero and not zero | EN-2 | CO-RS-10, EN-IF-03, EN-RX-01, EN-RX-02, MG-CN-01, MG-IF-03 | TC-CO-09, TC-CO-22, TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05 | Verified |
+| CPTP 5.5.4.4 | Error end of packet | EN-2 | CO-RS-04, CO-RS-10, CO-SY-03, CO-SY-06, EN-RX-02, EN-RX-03, MG-CN-01, MG-IF-03, RE-IF-04, RE-RC-02 | TC-CO-03, TC-CO-04, TC-CO-05, TC-CO-06, TC-CO-09, TC-CO-10, TC-CO-15, TC-CO-17, TC-CO-18, TC-CO-22, TC-EN-02, TC-EN-03, TC-EN-04, TC-MG-05, TC-RE-03, TC-RE-04, TC-RE-06, TC-RE-10, TC-RE-11 | Verified |
 
 Clauses: 46; not implemented: 1; user obligation: 1; verified: 44.
 
@@ -71,7 +71,7 @@ included).
 | Module | Requirements | Verified by a test case | Without a test case |
 | --- | --- | --- | --- |
 | `spp_apid_table` | 8 | 8 | - |
-| `spp_core` | 16 | 16 | - |
+| `spp_core` | 27 | 27 | - |
 | `spp_encapsulation` | 9 | 9 | - |
 | `spp_header` | 8 | 8 | - |
 | `spp_mib` | 14 | 14 | - |
@@ -81,4 +81,4 @@ included).
 | `spp_receive` | 14 | 14 | - |
 | `spp_send` | 18 | 18 | - |
 
-Requirements: 120; without a test case: 0; test cases of the plans not run by a testbench: 0.
+Requirements: 131; without a test case: 0; test cases of the plans not run by a testbench: 8.

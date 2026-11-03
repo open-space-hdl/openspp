@@ -49,13 +49,78 @@ mission by software.
 
 ## 3. Clock and reset
 
-All of the core runs in `Clk`; there is no clock domain crossing. `Rst` is synchronous and high-active (Open Logic
-convention); synchronise its release to `Clk`, for example with `olo_base_reset_gen` and `SyncTmr_g = true`. After
-the reset the core initialises both APID tables (2048 clock cycles, `TABLE_STATUS.TX_BUSY` and `RX_BUSY`). The send
-ports accept SDUs meanwhile; packets are sent and delivered once the tables are ready.
+All of the core runs in `Clk`; there is no clock domain crossing. The core has two reset inputs, both synchronous and
+high-active (Open Logic convention); synchronise their release to `Clk`, for example with `olo_base_reset_gen` and
+`SyncTmr_g = true`.
+
+| Input | Resets | Use |
+| --- | --- | --- |
+| `Rst` | The whole core | Power-up and system reset. A packet that is being sent on `M_Link` is cut without its end |
+| `DpRst` | Every function except the link output stage; default '0' | Restart of the data path while the link stays in operation, for example by a reset command of the system. A packet that is being sent on `M_Link` ends with an EEP |
+
+Both take effect when applied for one clock cycle, and a longer reset has the same effect. After the release the core
+initialises both APID tables (2048 clock cycles, `TABLE_STATUS.TX_BUSY` and `RX_BUSY`). The send ports accept SDUs
+meanwhile; packets are sent and delivered once the tables are ready. After `DpRst` the core is in the same state as
+after `Rst`: all buffers are empty, every entry of the APID tables is the initial entry of `TxPathDefault_g` and
+`RxPathDefault_g` (Packet Sequence Counts 0), and every register has its reset value, including the counters,
+`EVENTS`, `IRQ_EN` and the destinations (section 5).
 
 Every path takes one beat per clock cycle while its output is ready; section 7 gives the clock cycles per packet. At
 100 MHz and 32 bits the link ports carry up to 3.2 Gbit/s in each direction.
+
+### 3.1 Link output during a reset
+
+The reset edge is the rising edge of `Clk` at which a reset input is first sampled '1', the release edge the first edge
+after it at which neither input is sampled '1'. A packet is open on `M_Link` from the cycle in which its first beat is
+presented until its last beat is transferred.
+
+- `DpRst`: a beat that `M_Link` presents at the reset edge stays presented unchanged until it is transferred
+  (AXI4-Stream). When a packet is open and that beat is not its last, the link output stage then ends the packet with
+  one EEP beat: the byte 0x00 in byte lane 0, `TLast`, `M_Link_User(0)` '1' and the destination index of the packet in
+  `M_Link_User(4:1)`. The EEP beat comes in the cycle after the reset edge, or in the cycle after the transfer of the
+  pending beat, also while `DpRst` is still applied. No byte of the interrupted packet follows it, and no SDU that was
+  in a send buffer at the reset edge is sent. Between packets, or when the last beat of the packet is pending, `DpRst`
+  sends nothing on `M_Link`.
+- `Rst`: `M_Link_Valid` is '0' from the cycle after the reset edge. A packet that is being sent is cut without its last
+  beat and without an EEP, also when `DpRst` is applied at the same time. A subnetwork may join the cut packet to the
+  next one; the far end usually discards the joined packet, and the first packet after the reset is lost with it. Use
+  `DpRst` to reset the core while the link is in operation.
+
+| Order of the inputs | `M_Link` | The core leaves the reset |
+| --- | --- | --- |
+| `DpRst` alone | EEP beat for an open packet | At the release of `DpRst` |
+| `Rst` alone, or both applied at the same edge | Cut, no EEP beat | At the later release |
+| `Rst` applied while `DpRst` is applied | Cut from the reset edge of `Rst` on; an EEP beat that is not yet transferred is withdrawn | At the later release |
+| `DpRst` applied while `Rst` is applied | No beat: no packet is open | At the later release |
+| Both applied, `Rst` released first, `DpRst` one or more cycles later | No beat | At the release of `DpRst` |
+| Both applied, `DpRst` released first | No beat | At the release of `Rst` |
+
+The N-Char adapter `spp_nchar` belongs to the link: reset it with `Rst` only. It sends the EEP beat as the data
+character 0x00 followed by an EEP marker.
+
+### 3.2 The other ports during a reset
+
+From the cycle after the reset edge until the release, with either input:
+
+| Port | During the reset | After the release |
+| --- | --- | --- |
+| `S_Tx_Ready` of every send port | '0': the source waits | The next beat taken is the first beat of an SDU |
+| `S_Link_Ready` with the CPTP layer | '1': every beat is discarded and not counted | The next beat is the first beat of a packet |
+| `S_Link_Ready` without the CPTP layer | '0': the link waits | The next beat is the first beat of a packet |
+| `M_Rx_Valid` of every receive port | '0': an SDU in delivery ends without its last beat | SDUs of the packets received after the release |
+| `S_AxiLite_*` | Ready and response outputs '0': an access accepted before the reset edge gets no response | The registers have their reset values |
+| `Irq`, `Err_Valid` | '0' | Events of the traffic after the release |
+
+- A source that keeps sending an SDU through a reset continues it after the release as a new SDU: an Octet String
+  port sends the rest as an Octet String of its own; at a Packet Service port the rest is checked as a Space Packet and
+  rejected unless it happens to form one. Reset the sources of the send ports with the core (section 8).
+- The rest of a packet that was arriving on `S_Link` when the reset came is checked after the release as a packet of
+  its own. It is discarded and counted once with the reason of the first failed check (architecture, decision D8):
+  with the CPTP layer its first bytes are taken as the CPTP header (typically 0x11, 0x12 or 0x13), without it as the
+  Packet Primary Header (typically 0x15 or 0x16). A rest whose bytes happen to form a valid packet for an enabled path
+  is delivered; keep the far end from sending to the core while it is in reset (section 8).
+- Beats and packets discarded during the reset are not counted, and the first packet of every APID after the reset sets
+  no loss indicator.
 
 ## 4. Interfaces
 
@@ -115,6 +180,8 @@ error end of packet flag, valid with `TLast` ('0' EOP, '1' EEP). With `Encapsula
 packets: Target SpaceWire Address (0 to `SpwAddrBytes_g` bytes), Target Logical Address, Protocol Identifier 0x02,
 Reserved 0x00, User Application value, Space Packet. `M_Link_User(4:1)` carries the destination index of the packet in
 both configurations, so a subnetwork other than SpaceWire can route by it when the CPTP layer is removed.
+
+A packet that `DpRst` interrupts on `M_Link` ends with an EEP beat of one byte (section 3.1).
 
 Connect the link ports to the packet ports of a SpaceFibre port, or through `spp_nchar` to a SpaceWire port with an
 N-Char stream (section 4.6). A received packet may start with path address bytes that the network has not removed;
@@ -209,7 +276,8 @@ A receiver of the packets (a receive port of the Packet Service, or the ground):
 
 ## 5. Programming sequence
 
-1. After the reset wait until `TABLE_STATUS.TX_BUSY` and `RX_BUSY` are '0'.
+1. After a reset (`Rst` or `DpRst`) wait until `TABLE_STATUS.TX_BUSY` and `RX_BUSY` are '0'. Both resets return
+   every register and every table entry to its reset value, so the following steps follow every reset.
 2. Read `ID` (0x53505001), `GENERICS`, `SERVICES`, `TX_BUFFER` and `RX_BUFFER` to identify the core and its
    configuration.
 3. Write `MAX_LENGTH` and `CONFIG` (multiplexing scheme, Idle Packet delivery, Target Logical Address filter,
@@ -237,7 +305,7 @@ TMR for all other logic:
 | Part | Protection | Indication and test |
 | --- | --- | --- |
 | Data and descriptor buffers of every send port and of the receiving end (`olo_ft_fifo_packet`, `olo_ft_fifo_sync`); send and receive APID tables (`olo_ft_ram_sdp_scrub`, scrubbed in idle cycles) | SECDED ECC of the Open Logic ft entities: a single error is corrected, a double error is detected and contained: in a send data buffer the packet ends with an EEP, in the receive data buffer the SDU is delivered with the error bit of `M_Rx_TUser` set; in a descriptor or an APID table entry the SDU is rejected (0x08) or the packet discarded (0x1B). A table entry with a double error stays so until it is written again | `ECC_STATUS` (double error per channel), `ECC_SELECT` and `ECC_COUNT` (SEC and DED counters per channel, channels 0 to 7), `EVENTS.ECC_SEC` and `ECC_DED` with `Irq`, `Err_*` with 0x08 and 0x1B; error injection through the `ECC_INJECT` register |
-| Clock domain crossings and reset synchronisers | None in the core: it runs in one clock domain, and the release of `Rst` is synchronised outside the core (section 3). Use triplicated synchronisers there (`SyncTmr_g` = true, for example `olo_base_reset_gen`): three synchroniser chains and a majority voter. Their registers carry the Synplify attribute `syn_radhardlevel` = `none`, so the TMR of the synthesis tool adds no voters between the stages | none |
+| Clock domain crossings and reset synchronisers | None in the core: it runs in one clock domain, and the releases of `Rst` and `DpRst` are synchronised outside the core (section 3). Use triplicated synchronisers there (`SyncTmr_g` = true, for example `olo_base_reset_gen`): three synchroniser chains and a majority voter. Their registers carry the Synplify attribute `syn_radhardlevel` = `none`, so the TMR of the synthesis tool adds no voters between the stages | none |
 | State machines | Recovery state through the `when others` branch and the reset | none |
 | All other logic: registers of the control and data paths, counters, pointers, pipeline registers | TMR of the synthesis tool (for example `syn_radhardlevel` = `tmr` with Synplify, or the equivalent setting of the tool chain). The core adds no protection of its own for this logic; without TMR, an upset in it is not covered | synthesis report |
 
@@ -358,7 +426,12 @@ the receive direction the adapter takes one character per clock cycle (TC-AD-03)
 | Packetizer: its APID is used by no other source on the managed data path, and it is not the Idle APID | The count of the instance is the Packet Sequence Count of the APID (SPP 4.1.3.4.3.3); the packets carry user data |
 | Packetizer: `MAX_LENGTH` of the core and `TxBufferBytes_g` of its send port hold the longest packet, 6 + `SecHdrBytes_g` + `ChunkBytes_g` bytes plus 2 with `Crc_g` | Longer packets are rejected by the send port (0x01); a send buffer of two such packets lets the next packet enter while one leaves |
 | Packetizer: `Cfg_Apid` and `Cfg_Type` change only while the packetizer holds no data | They are sampled per packet; a change inside a data unit would split it between two APIDs |
-| Packetizer: reset it together with the core, or only while no packet is between it and the send port | A packet cut off by the reset of the packetizer would merge with the next one in the send buffer, which the core rejects (0x04) |
+| Packetizer: reset it together with the core (`Rst` or `DpRst`), or only while no packet is between it and the send port | A packet cut off by the reset of the packetizer would merge with the next one in the send buffer, which the core rejects (0x04) |
+| `DpRst` is synchronous to `Clk` like `Rst`; tie it to '0' or leave it open when it is not used | Both are synchronous resets of the Open Logic convention; `DpRst` has the default '0' |
+| Reset the sources of the send ports and the sinks of the receive ports together with the core, or reset the core only while no SDU is in transfer at its user ports | After a reset the core takes the rest of an interrupted SDU as a new SDU and ends an SDU in delivery without its last beat (section 3.2) |
+| Reset the link side (SpaceWire or SpaceFibre port, `spp_nchar`) with the reset of the link, never with `DpRst` | The EEP that ends an interrupted packet must reach the far end (section 3.1) |
+| The far end of the link sends nothing to the core while the core is in reset | With the CPTP layer the core discards the beats it takes during a reset without a count; the rest of an interrupted packet is checked as a packet of its own after the release (section 3.2) |
+| No register access while a reset is applied or about to be applied; run the programming sequence after every reset (section 5) | The register port answers no access during a reset, an access accepted before the reset edge gets no response, and every register returns to its reset value |
 
 ## 9. Conformance
 
@@ -411,8 +484,8 @@ With `Encapsulation_g` true the core is initiator and target of the CCSDS packet
 | 5.1, 5.2 | Service parameters and primitives | CCSDS_PACKET_SEND.request is the transfer of a Space Packet of the sending end with the destination of its APID; CCSDS_PACKET_RECEIVED.indication is the delivery at a receive port with the User Application value in `TUser`; status codes 0x01 and 0x02 are the error events 0x10 and 0x12 |
 | 5.3, 5.4 | Fields and format | Target SpaceWire Address of 0 to `SpwAddrBytes_g` bytes, Target Logical Address and User Application value per destination, Protocol Identifier 0x02, Reserved 0x00 |
 | 5.5.2 | Send request | A request with a packet longer than the maximum is rejected and reported (0x01) |
-| 5.5.3 | Transfer packet | One CPTP packet per Space Packet, ended with an EOP (an EEP after a double error in the send buffer) |
-| 5.5.4 | Receive packet | Packets ended with an EEP or with a Reserved field other than zero are discarded and reported to the user (error events, counters, interrupt); packets with another Protocol Identifier are discarded and reported as well; the Target Logical Address filter is optional (`CONFIG.TLA_CHECK`) |
+| 5.5.3 | Transfer packet | One CPTP packet per Space Packet, ended with an EOP; an EEP after a double error in the send buffer, or when `DpRst` interrupts the packet on the link (section 3.1) |
+| 5.5.4 | Receive packet | Packets ended with an EEP or with a Reserved field other than zero are discarded and reported to the user (error events, counters, interrupt); packets with another Protocol Identifier are discarded and reported as well; the Target Logical Address filter is optional (`CONFIG.TLA_CHECK`); the rest of a packet interrupted by a reset of the core is checked as a packet of its own (section 3.2) |
 | Annex A | Managed parameters | Minimum Space Packet length 7 bytes (fixed, SPP 4.1.2); maximum Space Packet size `MAX_LENGTH` |
 
 The [compliance matrix](compliance.md) lists the requirements and the test cases of every clause.

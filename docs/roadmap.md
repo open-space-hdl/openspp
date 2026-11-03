@@ -25,7 +25,7 @@ The core is at **TRL 3**: fully verified by simulation, not yet tested on hardwa
 | `spp_receive` | RE-1 to RE-3 (receiving end) | Done |
 | `spp_encapsulation` | EN-1, EN-2 (CPTP layer) | Done |
 | `spp_mib` | MG-1, MG-2 (register file, EDAC monitor) | Done |
-| `spp_core` | Core top level | Done |
+| `spp_core` | Core top level, LK-1 (link output stage) | Done; data path reset `DpRst` specified, RTL and tests open (release 0.2.0) |
 | `spp_nchar` | AD-1 (N-Char adapter) | Done |
 | `spp_packetizer` | PT-1 (packetizer: segmentation for the Packet Service) | Done with GHDL; QuestaSim and code coverage with the next release |
 
@@ -36,4 +36,5 @@ The core is at **TRL 3**: fully verified by simulation, not yet tested on hardwa
 | Synthesis on a target device: resources and timing | Open; `lint/synth_check.py` checks the synthesizability of the core (also at the bounds of its generics), of the N-Char adapter and of the packetizer with GHDL |
 | Hardware test with a SpaceWire or SpaceFibre port and independent CCSDS packet equipment as part of a reference system of the family | Open |
 | Code coverage with QuestaSim | Done: [coverage.md](coverage.md) |
+| Data path reset `DpRst`: the link output ends an open packet with an EEP while the core restarts (CO-RS-01 to CO-RS-11) | Specified; RTL, tests and QuestaSim with release 0.2.0 |
 | Several qualities of service (optional QoS Requirement parameter, SPP 3.3.2.4) | Not planned; one quality of service |

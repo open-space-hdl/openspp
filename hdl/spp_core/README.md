@@ -1,7 +1,8 @@
 # spp_core
 
-Top level of OpenSPP: sending end, receiving end, the transfer layer of ECSS-E-ST-50-53C and the register file. The
-integration tests connect two cores through link models and N-Char adapters.
+Top level of OpenSPP: sending end, receiving end, the transfer layer of ECSS-E-ST-50-53C, the register file and the
+link output stage, which ends an open link packet with an EEP when the data path reset `DpRst` comes. The integration
+tests connect two cores through link models and N-Char adapters.
 
 | Document | Content |
 | --- | --- |
