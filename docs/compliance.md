@@ -71,7 +71,7 @@ included).
 | Module | Requirements | Verified by a test case | Without a test case |
 | --- | --- | --- | --- |
 | `spp_apid_table` | 8 | 8 | - |
-| `spp_core` | 27 | 27 | - |
+| `spp_core` | 28 | 28 | - |
 | `spp_encapsulation` | 9 | 9 | - |
 | `spp_header` | 8 | 8 | - |
 | `spp_mib` | 14 | 14 | - |
@@ -81,4 +81,4 @@ included).
 | `spp_receive` | 14 | 14 | - |
 | `spp_send` | 18 | 18 | - |
 
-Requirements: 131; without a test case: 0; test cases of the plans not run by a testbench: 8.
+Requirements: 132; without a test case: 0; test cases of the plans not run by a testbench: 0.

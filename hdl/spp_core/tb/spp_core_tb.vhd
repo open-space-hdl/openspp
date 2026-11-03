@@ -80,14 +80,17 @@ architecture sim of spp_core_tb is
     constant OctetLen_c    : NatArray_t := (1, 2, 61, 256, 1024);
     constant PacketLen_c   : NatArray_t := (7, 8, 67, 262, 1030);
 
-    signal Clk    : std_logic;
-    signal RstA   : std_logic  := '1';
-    signal RstB   : std_logic  := '1';
-    signal LinkAB : LinkCtrl_t := LinkCtrlIdle_c;
-    signal LinkBA : LinkCtrl_t := LinkCtrlIdle_c;
-    signal StatAB : LinkStat_t;
-    signal StatBA : LinkStat_t;
-    signal Cores  : CoreStatArray_t;
+    signal Clk       : std_logic;
+    signal RstA      : std_logic        := '1';
+    signal RstB      : std_logic        := '1';
+    signal ResetCtrl : ResetCtrlArray_t := (others => ResetCtrlIdle_c);
+    signal LinkAB    : LinkCtrl_t       := LinkCtrlIdle_c;
+    signal LinkBA    : LinkCtrl_t       := LinkCtrlIdle_c;
+    signal StatAB    : LinkStat_t;
+    signal StatBA    : LinkStat_t;
+    signal Cores     : CoreStatArray_t;
+    signal Mon       : MonStatArray_t;
+    signal Probe     : ProbeStatArray_t;
 
     -- Positive control of the post check of test_idle: a vector that is never driven ('U')
     signal IeeeProbeReq  : boolean := false;
@@ -115,6 +118,15 @@ begin
         variable Strip_v  : natural;
         variable Addr_v   : std_logic_vector(127 downto 0);
         variable Srv_v    : std_logic_vector(31 downto 0);
+        variable Rel_v    : natural;
+        variable Pkts_v   : natural;
+        variable Eeps_v   : natural;
+        variable Beat_v   : natural;
+        variable Eps_v    : natural;
+        variable T_v      : time;
+        -- SDU whose bytes 0x55 fail the first check of the receiving end at any offset: as a CPTP header the
+        -- Protocol Identifier (0x11), as a Packet Primary Header the Packet Version Number (0x15)
+        variable Fill_v   : TbBytes_t(0 to 399) := (others => x"55");
 
         -- Register access of core c
         procedure regWrite (
@@ -301,6 +313,81 @@ begin
             regRead(1, RegRxTableEntry_c);
             CntA_v := (others => 0);
             CntB_v := (others => 0);
+        end procedure;
+
+        -- Arms the triggers of core c: DpRst and Rst at beat beat of a packet presented on M_Link, a stall of the
+        -- link at beat stallBeat (record ResetCtrl_t)
+        procedure arm (
+            c           : natural;
+            beat        : natural;
+            dpCycles    : natural := 1;
+            dpDelay     : natural := 0;
+            rstCycles   : natural := 0;
+            rstDelay    : natural := 0;
+            stallBeat   : natural := 0;
+            stallCycles : natural := 0) is
+            variable Ctrl_v : ResetCtrl_t;
+        begin
+            Ctrl_v       := ('0',
+                             ResetCtrl(c).Arm + 1,
+                             beat,
+                             dpDelay,
+                             dpCycles,
+                             rstDelay,
+                             rstCycles,
+                             stallBeat,
+                             stallCycles);
+            ResetCtrl(c) <= Ctrl_v;
+            wait until rising_edge(Clk);
+        end procedure;
+
+        -- DpRst of core c applied by the testbench for n clock cycles
+        procedure dpPulse (
+            c : natural;
+            n : positive) is
+        begin
+            wait until rising_edge(Clk);
+            ResetCtrl(c).DpRst <= '1';
+
+            for i in 1 to n loop
+                wait until rising_edge(Clk);
+            end loop;
+
+            ResetCtrl(c).DpRst <= '0';
+        end procedure;
+
+        -- Waits for the first reset of core c after rel release edges were counted; the sources of its send ports
+        -- drop the SDUs they are sending (as sources reset together with the core); then waits for eps release
+        -- edges in total and for the initialisation of the tables
+        procedure waitRelease (
+            c   : natural;
+            rel : natural;
+            eps : positive := 1) is
+            constant Ch_c : natural := choose(c = 0, ChTxA_c, ChTxB_c);
+        begin
+            if not Probe(c).InReset and Probe(c).Releases = rel then
+                wait until Probe(c).InReset for 1 ms;
+            end if;
+            check_value(Probe(c).InReset or Probe(c).Releases > rel, ERROR, "reset of core " & to_string(c));
+
+            for p in 0 to NumTx_g - 1 loop
+                if SppTbStore_v.count(Ch_c + p) > 0 then
+                    SppTbStore_v.setAbort(Ch_c + p);
+                end if;
+            end loop;
+
+            if Probe(c).Releases < rel + eps then
+                wait until Probe(c).Releases >= rel + eps for 1 ms;
+            end if;
+            check_value(Probe(c).Releases, rel + eps, ERROR, "release edges of core " & to_string(c));
+            -- A read of a table entry waits for the initialisation of the tables
+            regRead(c, RegTxTableEntry_c);
+            regRead(c, RegRxTableEntry_c);
+            if c = 0 then
+                CntA_v := (others => 0);
+            else
+                CntB_v := (others => 0);
+            end if;
         end procedure;
 
         -- Stream beats of n bytes
@@ -822,6 +909,414 @@ begin
                 waitAll;
                 regCheck(1, RegRxLoss_c, word(1), "discontinuity after the reset of A");
                 regCheck(0, RegTxPackets_c, word(2), "packets sent by A after its reset");
+                -- Rst of A while B sends a packet to A: S_Link_Ready of A in the reset (reset probe), the rest of the
+                -- packet is checked after the release as a packet of its own and discarded once
+                tbPush(ChTxB_c, Fill_v, tbTxUser(16#41#));
+                wait until Probe(0).SlinkBeats >= 3 for 1 ms;
+                Rel_v := Probe(0).Releases;
+                RstA  <= '1';
+
+                for i in 1 to 3 loop
+                    wait until rising_edge(Clk);
+                end loop;
+
+                RstA <= '0';
+                waitRelease(0, Rel_v);
+                octet(1, 0, 0, 16#41#, tbPayload(20, 12));
+                waitAll;
+                if Encapsulation_g then
+                    regCheck(0, RegErrRx1_c, word(2 ** 16), "ERR_RX1: rest of the packet, Protocol Identifier");
+                else
+                    regCheck(0, RegErrRx3_c, word(2 ** 16), "ERR_RX3: rest of the packet, version");
+                end if;
+                regCheck(0, RegRxPackets_c, word(1), "SDU delivered by A after its reset");
+                check_value(Probe(0).Slink(SlinkInside_c), 1, ERROR, "reset of A inside a received packet");
+
+            elsif run("test_dprst_eep") then
+                -- DpRst of A for one cycle at the transfer of the first, the second and the second-to-last beat of a
+                -- packet: the packet ends with one EEP beat (checked cycle by cycle by the link output monitor), B
+                -- discards it, and A sends again after the release with counts from 0
+                Len_v   := 200;
+                Beats_v := beats(Len_v + 6 + CptpBytes_c);
+                rxPath(1, 16#60#, 0, 1);
+                txPath(0, 16#60#, 3);
+                octet(0, 0, 0, 16#60#, tbPayload(30, 0));
+                waitAll;
+
+                for k in 0 to 2 loop
+                    Beat_v := 1 when k = 0 else 2 when k = 1 else Beats_v - 1;
+                    Rel_v  := Probe(0).Releases;
+                    Pkts_v := Mon(0).Packets;
+                    arm(0, Beat_v);
+                    tbPush(ChTxA_c, tbPayload(Len_v, 10 + k), tbTxUser(16#60#));
+                    waitRelease(0, Rel_v);
+                    check_value(Mon(0).Packets, Pkts_v + 1, ERROR, "only the interrupted packet before the release");
+                    txPath(0, 16#60#, 3);
+                    octet(0, 0, 0, 16#60#, tbPayload(30, 20 + k), 0, 1);
+                    octet(0, 0, 0, 16#60#, tbPayload(30, 30 + k));
+                    waitAll;
+                end loop;
+
+                check_value(Mon(0).Eeps, 3, ERROR, "EEP beats of A");
+                -- The beat of the reset edge is transferred at it, or pending through the N-Char adapters
+                check_value(Mon(0).Point(PointFirstXfer_c) + Mon(0).Point(PointFirstPend_c), 1, ERROR,
+                            "reset edge at a first beat");
+                check_value(Mon(0).Point(PointMiddleXfer_c) + Mon(0).Point(PointMiddlePend_c), 2, ERROR,
+                            "reset edge at a middle beat");
+                check_value(Probe(0).Length(Length1_c), 3, ERROR, "DpRst of one cycle");
+                regCheck(1, RegErrRx1_c, word(3), "ERR_RX1: three packets with EEP discarded by B");
+                regCheck(1, RegRxPackets_c, word(7), "SDUs delivered by B");
+                regCheck(1, RegRxLoss_c, word(3), "discontinuities indicated by B");
+
+            elsif run("test_dprst_no_eep") then
+                -- No EEP beat: DpRst of A (a) while A sends nothing, (b) at the transfer of the last beat of a packet,
+                -- (c) at the transfer of the last beat while the next packet waits back-to-back (discarded)
+                Len_v   := 200;
+                Beats_v := beats(Len_v + 6 + CptpBytes_c);
+                Rel_v   := Probe(0).Releases;
+                Pkts_v  := Mon(0).Packets;
+                dpPulse(0, 3);
+                waitRelease(0, Rel_v);
+                check_value(Mon(0).Packets, Pkts_v, ERROR, "(a) no beat on the link");
+                Rel_v   := Probe(0).Releases;
+                arm(0, Beats_v, 2);
+                octet(0, 0, 0, 16#61#, tbPayload(Len_v, 1));
+                waitRelease(0, Rel_v);
+                waitAll;
+                Rel_v   := Probe(0).Releases;
+                arm(0, Beats_v, 2);
+                octet(0, 0, 0, 16#61#, tbPayload(Len_v, 2));
+                tbPush(ChTxA_c, tbPayload(Len_v, 3), tbTxUser(16#61#));
+                waitRelease(0, Rel_v);
+                octet(0, 0, 0, 16#61#, tbPayload(30, 4));
+                waitAll;
+                check_value(Mon(0).Eeps + Mon(0).EepPkts, 0, ERROR, "no EEP beat");
+                check_value(Mon(0).Point(PointNone_c), 1, ERROR, "reset edge without an open packet");
+                check_value(Mon(0).Point(PointLastXfer_c) + Mon(0).Point(PointLastPend_c), 2, ERROR,
+                            "reset edge at a last beat");
+                check_value(Cores(1).Errors, 0, ERROR, "no error event at B");
+                regCheck(1, RegRxPackets_c, word(3), "SDUs delivered by B");
+
+            elsif run("test_dprst_stall") then
+                -- The link stalls for 20 cycles at the beat of the reset edge, DpRst lasts 30 cycles: (a) a middle
+                -- beat, (b) a first beat is held and followed by the EEP beat, (c) a pending last beat ends the packet
+                -- without EEP beat; (d) DpRst of 4 cycles, a middle beat held for 3000 cycles, beyond the release and
+                -- the table initialisation: the SDUs taken after the release follow the EEP beat
+                Len_v   := 200;
+                Beats_v := beats(Len_v + 6 + CptpBytes_c);
+
+                for k in 0 to 1 loop
+                    Beat_v := 3 when k = 0 else 1;
+                    Rel_v  := Probe(0).Releases;
+                    arm(0, Beat_v, 30, stallBeat => Beat_v, stallCycles => 20);
+                    tbPush(ChTxA_c, tbPayload(Len_v, k), tbTxUser(16#62#));
+                    waitRelease(0, Rel_v);
+                end loop;
+
+                Rel_v  := Probe(0).Releases;
+                arm(0, Beats_v, 30, stallBeat => Beats_v, stallCycles => 20);
+                octet(0, 0, 0, 16#62#, tbPayload(Len_v, 5));
+                waitRelease(0, Rel_v);
+                waitAll;
+                Rel_v  := Probe(0).Releases;
+                arm(0, 3, 4, stallBeat => 3, stallCycles => 3000);
+                tbPush(ChTxA_c, tbPayload(Len_v, 6), tbTxUser(16#62#));
+                wait until Probe(0).Releases > Rel_v for 1 ms;
+                CntA_v := (others => 0);
+                octet(0, 0, 0, 16#62#, tbPayload(40, 7));
+                octet(0, 0, 0, 16#62#, tbPayload(40, 8));
+                waitAll;
+                check_value(Mon(0).Eeps, 3, ERROR, "EEP beats of A");
+                check_value(Mon(0).Point(PointMiddlePend_c), 2, ERROR, "middle beat pending at the reset edge");
+                check_value(Mon(0).Point(PointFirstPend_c), 1, ERROR, "first beat pending at the reset edge");
+                check_value(Mon(0).Point(PointLastPend_c), 1, ERROR, "last beat pending at the reset edge");
+                check_value(Mon(0).Link(LinkAfterRel_c), 1, ERROR, "end of the packet after the release");
+                regCheck(1, RegErrRx1_c, word(3), "ERR_RX1: three packets with EEP discarded by B");
+                regCheck(1, RegRxPackets_c, word(3), "SDUs delivered by B");
+
+            elsif run("test_dprst_long") then
+                -- DpRst of A for 5000 cycles inside a packet: one EEP beat at once, then no beat up to the release;
+                -- a second reset edge of DpRst while the EEP beat is pending on a stalled link: still one EEP beat
+                Rel_v := Probe(0).Releases;
+                arm(0, 5, 5000);
+                tbPush(ChTxA_c, tbPayload(200, 1), tbTxUser(16#63#));
+                waitRelease(0, Rel_v);
+                check_value(Mon(0).Eeps, 1, ERROR, "one EEP beat during a long DpRst");
+                Rel_v := Probe(0).Releases;
+                arm(0, 5, 2, stallBeat => 6, stallCycles => 60);
+                tbPush(ChTxA_c, tbPayload(200, 2), tbTxUser(16#63#));
+                wait until Probe(0).InReset for 1 ms;
+                wait for 10 * ClkPeriod_c;
+                dpPulse(0, 3);
+                waitRelease(0, Rel_v, 2);
+                octet(0, 0, 0, 16#63#, tbPayload(40, 3));
+                waitAll;
+                check_value(Mon(0).Eeps, 2, ERROR, "one EEP beat per interrupted packet");
+                check_value(Mon(0).EepPkts, 2, ERROR, "packets ended with an EEP");
+                check_value(Probe(0).Length(LengthLong_c), 1, ERROR, "DpRst of more than 2048 cycles");
+                check_value(Probe(0).Length(Length16_c), 2, ERROR, "DpRst of 2 to 16 cycles");
+                regCheck(1, RegErrRx1_c, word(2), "ERR_RX1: two packets with EEP discarded by B");
+                regCheck(1, RegRxPackets_c, word(1), "SDU delivered by B");
+
+            elsif run("test_dprst_state") then
+
+                -- Every register and both APID tables return to their reset values; the tables are initialised again
+                for pass in 0 to 1 loop
+                    -- Counters, events, last error and ECC counters of A, written table entries
+                    if not PathDefault_g then
+                        txPath(0, 16#124#, 0);
+                        rxPath(1, 16#124#, 0);
+                        txPath(1, 16#125#, 0);
+                        rxPath(0, 16#125#, 0);
+                    end if;
+                    octet(0, 0, 0, 16#124#, tbPayload(20, 1));
+                    octet(1, 0, 0, 16#125#, tbPayload(20, 2));
+                    waitAll;
+                    regWrite(0, RegEccInject_c, x"00000100");
+                    octet(0, 0, 0, 16#124#, tbPayload(20, 3));
+                    waitAll;
+                    regWrite(0, RegMaxLength_c, word(100));
+                    tbPush(ChTxA_c, tbPayload(200, 4), tbTxUser(16#124#));
+                    waitAll;
+                    txPath(0, 16#123#, 2, 77);
+                    rxPath(0, 16#123#, 1, 1);
+                    regWrite(0, RegIrqEn_c, x"0000007F");
+                    regWrite(0, RegEccSelect_c, word(3));
+                    regWrite(0, RegScrub_c, word(0));
+                    regWrite(0, RegConfig_c, x"00004013");
+
+                    for d in 0 to NumDest_g - 1 loop
+                        dest(0, d, 16#41#, 16#22#, minimum(SpwAddrBytes_g, 2), x"00000201");
+                    end loop;
+
+                    -- The counters clear on a write only: these reads leave them
+                    regCheck(0, RegErrTx1_c, word(1), "ERR_TX1 before the reset");
+                    regWrite(0, RegEccSelect_c, word(0));
+                    regCheck(0, RegEccCount_c, word(1), "ECC_COUNT before the reset");
+                    regWrite(0, RegEccSelect_c, word(3));
+                    -- DpRst of one cycle, then of 16 cycles
+                    Rel_v := Probe(0).Releases;
+                    dpPulse(0, 1 + 15 * pass);
+                    T_v   := now;
+                    regCheck(0, RegTableStatus_c, x"00000003", "tables initialised after the release");
+                    wait for T_v + 2064 * ClkPeriod_c - now;
+                    regCheck(0, RegTableStatus_c, x"00000000", "tables ready 2048 cycles after the release");
+                    waitRelease(0, Rel_v);
+                    -- Reset values of the register file
+                    regCheck(0, RegConfig_c, word(Tla_g * 2 ** 8 + boolean'pos(RoundRobin_g)), "CONFIG");
+                    regCheck(0, RegMaxLength_c, word(MaxLength_g), "MAX_LENGTH");
+                    regCheck(0, RegTxTableApid_c, RegTxTableApidReset_c, "TX_TABLE_APID");
+                    regCheck(0, RegRxTableApid_c, RegRxTableApidReset_c, "RX_TABLE_APID");
+                    regCheck(0, RegLastError_c, word(0), "LAST_ERROR");
+                    regCheck(0, RegEvents_c, RegEventsReset_c, "EVENTS");
+                    regCheck(0, RegIrqEn_c, RegIrqEnReset_c, "IRQ_EN");
+                    regCheck(0, RegIrqStatus_c, word(0), "IRQ_STATUS");
+                    regCheck(0, RegEccStatus_c, RegEccStatusReset_c, "ECC_STATUS");
+                    regCheck(0, RegEccSelect_c, RegEccSelectReset_c, "ECC_SELECT");
+                    regCheck(0, RegEccCount_c, RegEccCountReset_c, "ECC_COUNT");
+                    regCheck(0, RegScrub_c, RegScrubReset_c, "SCRUB");
+                    regCheck(0, RegTxPackets_c, RegTxPacketsReset_c, "TX_PACKETS");
+                    regCheck(0, RegRxPackets_c, RegRxPacketsReset_c, "RX_PACKETS");
+                    regCheck(0, RegRxLoss_c, RegRxLossReset_c, "RX_LOSS");
+
+                    for r in 0 to 3 loop
+                        regCheck(0, RegErrTx1_c + 4 * r, word(0), "ERR_TX" & to_string(r + 1));
+                    end loop;
+
+                    for r in 0 to 5 loop
+                        regCheck(0, RegErrRx1_c + 4 * r, word(0), "ERR_RX" & to_string(r + 1));
+                    end loop;
+
+                    for d in 0 to NumDest_g - 1 loop
+                        regCheck(0, RegDestCtrl_c + d * RegDestStride_c, RegDestCtrlReset_c, "DEST_CTRL");
+                        regCheck(0, RegDestAddr0_c + d * RegDestStride_c, RegDestAddr0Reset_c, "DEST_ADDR0");
+                    end loop;
+
+                    -- Initial entries of both APID tables
+                    regWrite(0, RegTxTableApid_c, word(16#123#));
+                    regCheck(0, RegTxTableEntry_c, word(boolean'pos(PathDefault_g) * 2 ** 18), "initial send entry");
+                    regWrite(0, RegRxTableApid_c, word(16#123#));
+                    regCheck(0, RegRxTableEntry_c, word(boolean'pos(PathDefault_g) * 2 ** 20), "initial receive entry");
+                    -- The core works again after the programming sequence
+                    if not PathDefault_g then
+                        txPath(0, 16#126#, 0);
+                        rxPath(1, 16#126#, 0);
+                    end if;
+                    octet(0, 0, 0, 16#126#, tbPayload(20, 5));
+                    waitAll;
+                    regCheck(0, RegTxPackets_c, word(1), "packet sent by A after the reset");
+                end loop;
+
+                check_value(Probe(0).Length(Length1_c), 1, ERROR, "DpRst of one cycle");
+                check_value(Probe(0).Length(Length16_c), 1, ERROR, "DpRst of 16 cycles");
+
+            elsif run("test_dprst_rst") then
+                -- Orders of Rst and DpRst of A with a packet open on the link, which drops the packets of A: no EEP beat
+                -- follows Rst in any order, the core leaves the reset at the later release
+                LinkAB.DropTarget <= 1000;
+
+                for k in 0 to 6 loop
+                    Rel_v  := Probe(0).Releases;
+                    Eps_v  := 1;
+                    Eeps_v := Mon(0).Eeps;
+
+                    case k is
+
+                        when 0 =>
+                            -- Rst while the EEP beat is pending on a stalled link: the EEP beat is withdrawn
+                            arm(0, 3, 2, 0, 2, 10, 4, 40);
+                            Eps_v := 2;
+
+                        when 1 =>
+                            -- Both applied at the same edge, released at the same edge
+                            arm(0, 3, 3, 0, 3, 0);
+
+                        when 2 =>
+                            -- Both applied at the same edge, Rst released first, DpRst one cycle later
+                            arm(0, 3, 4, 0, 3, 0);
+
+                        when 3 =>
+                            -- Both applied at the same edge, DpRst released first, Rst ten cycles later
+                            arm(0, 3, 2, 0, 12, 0);
+
+                        when 4 =>
+                            -- DpRst applied while Rst is applied
+                            arm(0, 3, 3, 3, 10, 0);
+
+                        when 5 =>
+                            -- Rst alone
+                            arm(0, 3, 0, 0, 3, 0);
+
+                        when others =>
+                            -- Rst applied while DpRst is applied, after the EEP beat: Rst released first
+                            arm(0, 3, 10, 0, 3, 3);
+
+                    end case;
+
+                    tbPush(ChTxA_c, tbPayload(200, k), tbTxUser(16#64#));
+                    waitRelease(0, Rel_v, Eps_v);
+                    check_value(Mon(0).Eeps, Eeps_v + boolean'pos(k = 6), ERROR, "EEP beats of A, case " & to_string(k));
+                end loop;
+
+                check_value(Probe(0).Order(OrderDpRst_c) > 0 and Probe(0).Order(OrderRst_c) > 0 and
+                            Probe(0).Order(OrderSameEdge_c) > 0 and Probe(0).Order(OrderRstInDp_c) > 0 and
+                            Probe(0).Order(OrderDpInRst_c) > 0 and Probe(0).Order(OrderRstFirst_c) > 0 and
+                            Probe(0).Order(OrderDpFirst_c) > 0 and Probe(0).Order(OrderSameRel_c) > 0, ERROR,
+                            "every order of the two inputs");
+                -- The EEP beat of the last case ended the packet in the link model: forward the next packets
+                LinkAB.DropTarget <= StatAB.Dropped;
+                octet(0, 0, 0, 16#64#, tbPayload(40, 10));
+                waitAll;
+                regCheck(1, RegRxPackets_c, word(1), "SDU delivered by B");
+
+            elsif run("test_dprst_ports") then
+                -- B sends a long SDU to receive port 0 of A, which delivers it slowly
+                SppTbStore_v.clearStats(ChRxA_c);
+                tbSetStall(ChRxA_c, 0.9);
+                octet(1, 0, 0, 16#71#, tbPayload(2000, 1));
+
+                -- The statistics are a shared variable: polled once per cycle
+                for i in 1 to 100000 loop
+                    exit when SppTbStore_v.bytes(ChRxA_c) > 0;
+                    wait until rising_edge(Clk);
+                end loop;
+
+                check_value(SppTbStore_v.bytes(ChRxA_c) > 0, ERROR, "A delivers the SDU of B");
+                -- A sends a packet of 1000 bytes from send port 0; once it is on the link, a complete SDU waits on
+                -- send port 2, and every send port takes part of an SDU
+                Pkts_v := Mon(0).Beats;
+                tbPush(ChTxA_c, tbPayload(1000, 2), tbTxUser(16#72#));
+                wait until Mon(0).Beats > Pkts_v for 1 ms;
+                if NumTx_g > 2 then
+                    tbPush(ChTxA_c + 2, tbPayload(20, 3), tbTxUser(16#73#));
+                end if;
+
+                for p in 0 to NumTx_g - 1 loop
+                    if Octet_c(p) = '1' then
+                        tbPush(ChTxA_c + p, tbPayload(3000, 10 + p), tbTxUser(16#74#));
+                    else
+                        tbPush(ChTxA_c + p, tbSpacePacket(0, 0, 16#75#, 3, 0, tbPayload(3000, 10 + p)), tbTxUser(0));
+                    end if;
+                end loop;
+
+                wait for 100 * ClkPeriod_c;
+                -- DpRst of A for 8 cycles: the sink drops the SDU it was receiving (ends without its last beat)
+                wait until rising_edge(Clk);
+                Rel_v              := Probe(0).Releases;
+                Eps_v              := Probe(0).Cycles;
+                ResetCtrl(0).DpRst <= '1';
+                wait until rising_edge(Clk);
+                SppTbStore_v.setAbort(ChRxA_c);
+                SppTbStore_v.pop(ChRxA_c);
+
+                for i in 1 to 7 loop
+                    wait until rising_edge(Clk);
+                end loop;
+
+                ResetCtrl(0).DpRst <= '0';
+                waitRelease(0, Rel_v);
+                check_value(Probe(0).Cycles - Eps_v, 7, ERROR, "cycles checked by the reset probe");
+                check_value(SppTbStore_v.packets(ChRxA_c), 0, ERROR, "SDU in delivery ended without its last beat");
+                tbSetStall(ChRxA_c, 0.0);
+
+                -- Every send port sends a new SDU, B delivers exactly these
+                for p in 0 to NumTx_g - 1 loop
+                    if Octet_c(p) = '1' then
+                        octet(0, p, 0, 16#80# + p, tbPayload(40, 20 + p));
+                    else
+                        packet(0, p, 0, tbSpacePacket(0, 0, 16#80# + p, 3, 0, tbPayload(40, 20 + p)));
+                    end if;
+                    waitAll;
+                end loop;
+
+                octet(1, 0, 0, 16#71#, tbPayload(30, 4));
+                waitAll;
+                check_value(Mon(0).Eeps, 1, ERROR, "EEP beat of the packet of send port 0");
+                regCheck(1, RegErrRx1_c, word(1), "ERR_RX1: packet with EEP discarded by B");
+                regCheck(1, RegRxPackets_c, word(NumTx_g), "SDUs delivered by B");
+                regCheck(0, RegRxPackets_c, word(1), "SDU delivered by A after the reset");
+
+            elsif run("test_dprst_active_link") then
+                -- Both directions with the continuity check; DpRst of A while it sends and receives a packet
+                rxPath(1, 16#90#, 0, 1);
+                rxPath(0, 16#91#, 0, 1);
+
+                for i in 0 to 4 loop
+                    octet(0, 0, 0, 16#90#, tbPayload(50, i));
+                    octet(1, 0, 0, 16#91#, tbPayload(50, 10 + i));
+                end loop;
+
+                waitAll;
+                -- A sends a long packet; once it is on the link B sends a packet that fails the checks of A at any offset
+                Pkts_v := Mon(0).Beats;
+                tbPush(ChTxA_c, tbPayload(2000, 20), tbTxUser(16#90#));
+                wait until Mon(0).Beats > Pkts_v for 1 ms;
+                tbPush(ChTxB_c, Fill_v, tbTxUser(16#91#));
+                wait until Probe(0).SlinkBeats >= 3 for 1 ms;
+                Rel_v  := Probe(0).Releases;
+                dpPulse(0, 4);
+                waitRelease(0, Rel_v);
+                rxPath(0, 16#91#, 0, 1);
+
+                for i in 0 to 2 loop
+                    octet(0, 0, 0, 16#90#, tbPayload(50, 30 + i), 0, boolean'pos(i = 0));
+                    octet(1, 0, 0, 16#91#, tbPayload(50, 40 + i));
+                end loop;
+
+                waitAll;
+                check_value(Mon(0).Eeps, 1, ERROR, "EEP beat of A");
+                check_value(Probe(0).Slink(SlinkInside_c), 1, ERROR, "DpRst of A inside a received packet");
+                regCheck(1, RegErrRx1_c, word(1), "ERR_RX1: packet with EEP discarded by B");
+                regCheck(1, RegRxPackets_c, word(8), "SDUs delivered by B");
+                regCheck(1, RegRxLoss_c, word(1), "discontinuity of the counts of A at B");
+                regCheck(1, RegTxPackets_c, word(9), "packets sent by B");
+                if Encapsulation_g then
+                    regCheck(0, RegErrRx1_c, word(2 ** 16), "ERR_RX1: rest of the packet, Protocol Identifier");
+                else
+                    regCheck(0, RegErrRx3_c, word(2 ** 16), "ERR_RX3: rest of the packet, version");
+                end if;
+                regCheck(0, RegRxPackets_c, word(3), "SDUs delivered by A after the reset");
+                regCheck(0, RegRxLoss_c, word(0), "no loss indication at A");
             end if;
 
             wait for 20 * ClkPeriod_c;
@@ -859,14 +1354,17 @@ begin
             Tla_g           => Tla_g
         )
         port map (
-            Clk    => Clk,
-            RstA   => RstA,
-            RstB   => RstB,
-            LinkAB => LinkAB,
-            LinkBA => LinkBA,
-            StatAB => StatAB,
-            StatBA => StatBA,
-            Cores  => Cores
+            Clk       => Clk,
+            RstA      => RstA,
+            RstB      => RstB,
+            ResetCtrl => ResetCtrl,
+            LinkAB    => LinkAB,
+            LinkBA    => LinkBA,
+            StatAB    => StatAB,
+            StatBA    => StatBA,
+            Cores     => Cores,
+            Mon       => Mon,
+            Probe     => Probe
         );
 
 end architecture;
