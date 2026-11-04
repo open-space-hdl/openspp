@@ -8,8 +8,10 @@ Run on 2026-10-10 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `p
 | --- | --- | --- |
 | `spp_header_tb` | 5 test cases in 6 configurations (stream widths 8, 16, 24, 32, 64, 128 bits): 30 | 30 |
 
-QuestaSim (Questa Sim Microchip Edition 2024.3): the same tests pass in the regression with code coverage
-(`python run.py --questa --coverage -p 1`); the coverage is in [docs/coverage.md](../../../docs/coverage.md).
+QuestaSim (Questa Sim Microchip Edition 2024.3) at a time resolution of 1 fs, release 0.2.0 on 2026-11-04: the 30 runs
+of `spp_header_tb` (5 test cases) pass without code coverage (`python run.py --questa -p 1`) and with it
+(`python run.py --questa --coverage -p 1`), in the complete regression of 668 runs; the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Summary
 

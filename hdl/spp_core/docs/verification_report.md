@@ -64,11 +64,10 @@ elaborated and synthesized (configurations in the verification plan, section 2).
 | `Tla_g` | 8 bits | 0xFE, 0x20 | 0xFE, 0x20 |
 | `ClkFreqHz_g` | real, no effect | 100.0e6 | 100.0e6 |
 
-QuestaSim (Questa Sim Microchip Edition 2024.3), on 2026-10-15: test cases TC-CO-01 to TC-CO-14 pass in the
-regression without code coverage (`python run.py --questa -p 1`) and with it (`python run.py --questa --coverage -p 1`);
-the coverage is in [docs/coverage.md](../../../docs/coverage.md). The tests of the resets (TC-CO-15 to TC-CO-22 and the
-extension of TC-CO-09) and the link output stage have run in GHDL; their QuestaSim runs with and without code coverage
-follow with the release 0.2.0.
+QuestaSim (Questa Sim Microchip Edition 2024.3) at a time resolution of 1 fs, release 0.2.0 on 2026-11-04: the 155 runs
+of `spp_core_tb` (22 test cases) pass without code coverage (`python run.py --questa -p 1`) and with it
+(`python run.py --questa --coverage -p 1`), in the complete regression of 668 runs; the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ### 1.1 Resets
 
