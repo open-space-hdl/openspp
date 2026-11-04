@@ -49,8 +49,10 @@ The integration test TC-PT-12 sends 30 data units of 1 to 256 bytes through the 
 port of the Packet Service of `spp_core` with the CPTP layer and the link looped back: all 78 Space Packets arrive
 intact with their Sequence Flags, counts, secondary header and CRC; the core reports no error event.
 
-QuestaSim: the module enters the QuestaSim regression (with and without code coverage) of the next OpenSPP release;
-the results and the coverage will be in [docs/coverage.md](../../../docs/coverage.md).
+QuestaSim (Questa Sim Microchip Edition 2024.3) at a time resolution of 1 fs, release 0.2.0 on 2026-11-04: the 320 runs
+of `spp_packetizer_tb` (13 test cases) and the run of `spp_packetizer_core_tb` (TC-PT-12) pass without code coverage
+(`python run.py --questa -p 1`) and with it (`python run.py --questa --coverage -p 1`), in the complete regression of
+668 runs; the coverage is in [docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Negative tests and mutations
 
