@@ -4,13 +4,14 @@
 # ---------------------------------------------------------------------------------------------------
 """VUnit configurations of the core tests: stream widths with the CPTP layer, one width without it, the N-Char
 adapters and cores without default managed data paths, and every value of the generics that change the structure of
-the core (stream width, port and destination counts, address length) and the bounds of the others."""
+the core (stream width, port and destination counts, address length) and the bounds of the others, and the
+configurations of the reset tests."""
 
 from pathlib import Path
 
 CPTP = ["test_end_to_end", "test_address_strip", "test_link_errors", "test_loss", "test_eep", "test_send_errors",
         "test_line_rate", "test_throughput", "test_reset", "test_default_paths"]
-PLAIN = ["test_plain", "test_link_errors", "test_loss", "test_throughput"]
+PLAIN = ["test_plain", "test_link_errors", "test_loss", "test_throughput", "test_reset"]
 # Both links through two N-Char adapters with an 8-bit N-Char stream between them
 NCHAR = ["test_end_to_end", "test_link_errors", "test_eep"]
 # TxPathDefault_g and RxPathDefault_g false: no APID has a managed data path after the reset; no address bytes
@@ -38,6 +39,26 @@ IDLE = {"cptp_w32": {"DataWidth_g": 32, "Encapsulation_g": True},
         "plain_w64": {"DataWidth_g": 64, "Encapsulation_g": False},
         "nchar_w32": {"DataWidth_g": 32, "Encapsulation_g": True, "NChar_g": True}}
 IDLE_MARKER = "SPP_IDLE_CHECK_START"
+# Resets (specification CO-RS-01 to CO-RS-12): the configurations of each test
+RESET_CONFIGS = {"cptp_w32": {"DataWidth_g": 32, "Encapsulation_g": True},
+                 "cptp_w128": {"DataWidth_g": 128, "Encapsulation_g": True},
+                 "cptp_w8": {"DataWidth_g": 8, "Encapsulation_g": True},
+                 "plain_w64": {"DataWidth_g": 64, "Encapsulation_g": False},
+                 "nchar_w32": {"DataWidth_g": 32, "Encapsulation_g": True, "NChar_g": True},
+                 "nopath_w32": {"DataWidth_g": 32, "Encapsulation_g": True, "PathDefault_g": False,
+                                "SpwAddrBytes_g": 0},
+                 "ports1_w32": {"DataWidth_g": 32, "Encapsulation_g": True, "NumTx_g": 1, "NumRx_g": 16,
+                                "NumDest_g": 1},
+                 "ports16_w32": {"DataWidth_g": 32, "Encapsulation_g": True, "NumTx_g": 16, "NumRx_g": 1,
+                                 "NumDest_g": 16}}
+RESETS = {"test_dprst_eep": ["cptp_w32", "cptp_w128", "plain_w64", "nchar_w32", "cptp_w8"],
+          "test_dprst_no_eep": ["cptp_w32", "plain_w64", "nchar_w32"],
+          "test_dprst_stall": ["cptp_w32", "cptp_w128", "plain_w64"],
+          "test_dprst_long": ["cptp_w32", "plain_w64"],
+          "test_dprst_state": ["cptp_w32", "nopath_w32"],
+          "test_dprst_rst": ["cptp_w32", "plain_w64"],
+          "test_dprst_ports": ["cptp_w32", "ports1_w32", "ports16_w32"],
+          "test_dprst_active_link": ["cptp_w32", "cptp_w128", "plain_w64", "nchar_w32"]}
 # Positive control: the testbench raises the warning of to_integer on an undefined vector between these markers
 PROBE_MARKERS = ("SPP_IDLE_PROBE_START", "SPP_IDLE_PROBE_END")
 
@@ -98,3 +119,6 @@ def configure(lib):
         tb.test("test_reset_values").add_config(name=name, generics=dict(generics, Encapsulation_g=True))
     tb.test("test_reset_values").add_config(name="limits_w32", generics=dict(LIMITS, DataWidth_g=32,
                                                                              Encapsulation_g=True))
+    for test, names in RESETS.items():
+        for name in names:
+            tb.test(test).add_config(name=name, generics=RESET_CONFIGS[name])
