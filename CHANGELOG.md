@@ -20,7 +20,7 @@ and a patch version for a fix.
 
 ### Changed
 
-- Open Logic 4.7.0-ft.9 (from 4.7.0-ft.6); no port or generic of OpenSPP changes.
+- Open Logic 4.7.0-ft.12 (from 4.7.0-ft.6); no port or generic of OpenSPP changes for it.
 - Verification: the test end compares the alert counters of every level itself and ends the simulation with a
   failure, whatever the stop limits of the test.
 - `spp_core`: `M_Link` is driven by the register stage `spp_link_output`, one clock cycle later than before; the
