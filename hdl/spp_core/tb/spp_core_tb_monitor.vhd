@@ -77,6 +77,7 @@ begin
         variable Pkt_v      : natural                      := 0;
         variable Before_v   : natural;
         variable Dest_v     : std_logic_vector(3 downto 0) := "0000";
+        variable PDest_v    : std_logic_vector(3 downto 0) := "0000";
         variable PValid_v   : std_logic                    := '0';
         variable PHs_v      : boolean                      := false;
         variable PData_v    : std_logic_vector(DataWidth_g - 1 downto 0);
@@ -133,8 +134,10 @@ begin
                 end if;
             end if;
 
-            -- Transfers
+            -- Transfers; the destination of the open packet before the transfer of this cycle (an EEP beat
+            -- must not become its own reference)
             Before_v := Pkt_v;
+            PDest_v  := Dest_v;
             Ended_v  := false;
             if Hs_v then
                 St_v.Beats := St_v.Beats + 1;
@@ -210,9 +213,9 @@ begin
 
                     when ExpEep_s =>
                         if Valid /= '1' or Last /= '1' or Keep /= EepKeep_c or unsigned(Data) /= 0 or
-                           User /= Dest_v & '1' then
+                           User /= PDest_v & '1' then
                             alert(ERROR, Name_g & ": EEP beat expected (Data 0, Keep lane 0, TLast, TUser " &
-                                  to_string(Dest_v & '1') & "), got Valid " & to_string(Valid) & ", Keep " &
+                                  to_string(PDest_v & '1') & "), got Valid " & to_string(Valid) & ", Keep " &
                                   to_string(Keep) & ", Last " & to_string(Last) & ", TUser " & to_string(User));
                         end if;
                         if Hs_v then
