@@ -4,6 +4,13 @@ The notable changes of OpenSPP. The versions follow semantic versioning: 0.y.z w
 version for an incompatible change of ports, stream formats, generics or register map, a minor version for a feature
 and a patch version for a fix.
 
+## [Unreleased]
+
+### Changed
+
+- `run.py` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory of `vsim`) or from `vsim` on the `PATH`, and
+  stops with a message when neither gives it; it has no default installation path any more.
+
 ## [0.2.0] - 2026-11-04
 
 Interface change of `spp_core`: the new input port `DpRst` (data path reset, default '0'), and the link output
