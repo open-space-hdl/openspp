@@ -80,8 +80,9 @@ python run.py --questa <test>   # QuestaSim
 ```
 
 `run.py` compiles Open Logic into the VHDL library `olo`, the required UVVM components into their own libraries and
-all OpenSPP sources into the library `openspp`. `SPP_GHDL_SIM_FLAGS` passes extra flags to the GHDL simulation, for
-example `--vcd=wave.vcd` for a waveform.
+all OpenSPP sources into the library `openspp`. `--questa` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory
+of `vsim`) or from `vsim` on the `PATH`. `SPP_GHDL_SIM_FLAGS` passes extra flags to the GHDL simulation, for example
+`--vcd=wave.vcd` for a waveform.
 
 Checks besides the regression:
 

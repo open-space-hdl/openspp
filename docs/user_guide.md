@@ -512,3 +512,5 @@ python tools/compliance.py --check          # traceability of SPP and CPTP
 python tools/regmap.py --check              # generated register map up to date
 python run.py --compile-order               # compile_order.txt of the synthesis sources
 ```
+
+`--questa` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory of `vsim`) or from `vsim` on the `PATH`.

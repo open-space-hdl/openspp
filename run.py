@@ -8,9 +8,10 @@ Compiles Open Logic into the library `olo`, the UVVM components used by the test
 libraries and every module of component_list.txt plus the shared verification components (tb/) into the
 library `openspp`, then runs all testbenches.
 
-GHDL is the default simulator. `--questa` selects QuestaSim; `--questa --coverage` collects the code coverage
-(statements, branches, conditions, expressions, state machines) of the OpenSPP sources and merges it into
-coverage/coverage.ucdb with the text report coverage/coverage_report.txt.
+GHDL is the default simulator. `--questa` selects QuestaSim, taken from VUNIT_MODELSIM_PATH (the directory of vsim)
+or from vsim on the PATH; `--questa --coverage` collects the code coverage (statements, branches, conditions,
+expressions, state machines) of the OpenSPP sources and merges it into coverage/coverage.ucdb with the text report
+coverage/coverage_report.txt.
 
 `--compile-order` writes compile_order.txt with the synthesis sources of the library `openspp` in compile order and
 exits without simulating.
@@ -18,14 +19,12 @@ exits without simulating.
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-
-# QuestaSim installation used when --questa is given and VUNIT_MODELSIM_PATH is not set
-QUESTA_DEFAULT_PATH = r"D:\Microchip\Libero_SoC_2025.2\Libero_SoC\QuestaSim_Pro\win64"
 
 # Simulator selection must happen before VUnit parses the command line
 COMPILE_ORDER = "--compile-order" in sys.argv
@@ -37,8 +36,12 @@ if COVERAGE:
 if "--questa" in sys.argv:
     sys.argv.remove("--questa")
     os.environ["VUNIT_SIMULATOR"] = "modelsim"
-    if "VUNIT_MODELSIM_PATH" not in os.environ and Path(QUESTA_DEFAULT_PATH).exists():
-        os.environ["VUNIT_MODELSIM_PATH"] = QUESTA_DEFAULT_PATH
+    # QuestaSim from VUNIT_MODELSIM_PATH (the directory of vsim) or from the PATH
+    if "VUNIT_MODELSIM_PATH" not in os.environ:
+        vsim = shutil.which("vsim")
+        if vsim is None:
+            sys.exit("QuestaSim not found: set VUNIT_MODELSIM_PATH to the directory of vsim or put vsim on the PATH")
+        os.environ["VUNIT_MODELSIM_PATH"] = str(Path(vsim).parent)
 else:
     os.environ.setdefault("VUNIT_SIMULATOR", "ghdl")
 
