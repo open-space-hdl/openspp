@@ -78,5 +78,5 @@ destination of its managed data path to the transfer layer.
 | SPP 3.3.2.4 | One quality of service: the optional QoS Requirement parameter is not implemented. |
 | SPP 4.1.3.3.3.3 | The Secondary Header Flag of an APID is kept static by the user; the core does not check it. |
 | SPP 4.1.3.4.3.2 | A telemetry packet carries the Packet Sequence Count; a Packet Name in the request of a telemetry packet is rejected. |
-| SPP 4.1.3.4.3.4 | The counts are reset only by the reset of the core (an unavoidable reinitialisation); the register file can set them. |
+| SPP 4.1.3.4.3.4 | The counts are reset only by a reset of the core (`Rst` or `DpRst` of `spp_core`, an unavoidable reinitialisation); the register file can set them. |
 | CPTP 5.5.2c | "Reject the send request and inform the initiator user application": the SDU is discarded and an error event is reported. |

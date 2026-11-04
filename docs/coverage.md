@@ -2,8 +2,8 @@
 
 ## 1. Method
 
-The code coverage of the OpenSPP sources is measured with QuestaSim (Questa Sim Microchip Edition 2024.3) over the
-complete regression of `run.py`, the same test set that GHDL runs in CI:
+The code coverage of the OpenSPP sources is measured with QuestaSim (Questa Sim Microchip Edition 2024.3), at a time
+resolution of 1 fs as GHDL, over the complete regression of `run.py`, the same test set that GHDL runs in CI:
 
 ```shell
 python run.py --questa --coverage -p 1
@@ -27,28 +27,27 @@ Closure rules:
 
 ## 2. Result
 
-Runs on 2026-10-15 with Open Logic 4.7.0-ft.6, both on the same HDL:
-
-- the complete regression of 321 tests (71 test cases in their configurations) on commit af774dd, without and with
-  code coverage, all passed;
-- the configuration `pktmax_w8`, added on commit 711a29a (no source or testbench change against af774dd besides the
-  configuration list), without and with code coverage, passed.
-
-The numbers below are the merge (`vcover merge`) of the coverage database of the 321 tests and of the `pktmax_w8` run:
-322 tests. Numbers are covered/total bins per file; bold marks a metric with misses. The FSM columns of
-`spp_send_assembly.vhd` count both of its state machines; section 4 explains the misses.
+Runs on 2026-11-04 with Open Logic 4.7.0-ft.12 on commit b7fcbba, the head of the release 0.2.0: the complete
+regression of 668 tests (93 test cases in their configurations), with code coverage and without it (full
+optimisation), all passed in both. The numbers below are covered/total bins per file of the coverage database of
+these 668 tests; bold marks a metric with misses. The FSM columns of `spp_send_assembly.vhd` count both of its state
+machines; section 4 explains the misses.
 
 | File | Statements | Branches | FSM States | FSM Transitions | Conditions | Expressions |
 | --- | --- | --- | --- | --- | --- | --- |
 | `spp_apid_table/src/spp_apid_table.vhd` | 62/62 | 41/41 | 4/4 | 7/7 | 11/11 | 4/4 |
-| `spp_core/src/spp_core.vhd` | 18/18 | 4/4 |  |  |  |  |
+| `spp_core/src/spp_core.vhd` | 19/19 | 4/4 |  |  |  | 2/2 |
+| `spp_core/src/spp_link_output.vhd` | 40/40 | 19/19 | 2/2 | 2/2 |  | 4/4 |
 | `spp_encapsulation/src/spp_decapsulation.vhd` | 45/45 | 25/25 | 3/3 | 3/3 | 10/10 | 2/2 |
 | `spp_encapsulation/src/spp_encapsulation.vhd` | 26/26 | 12/12 |  |  |  |  |
 | `spp_header/src/spp_header_insert.vhd` | 91/91 | 45/45 | 4/4 | **9/10** | 7/7 |  |
 | `spp_header/src/spp_header_remove.vhd` | 88/88 | 34/34 | 3/3 | **4/5** | 6/6 |  |
 | `spp_mib/src/spp_mib.vhd` | 234/234 | 122/122 |  |  | 13/13 |  |
 | `spp_nchar/src/spp_nchar.vhd` | 54/54 | 33/33 |  |  | 14/14 | 10/10 |
-| `spp_pkg/src/spp_pkg.vhd` | **26/27** | 6/6 |  |  |  |  |
+| `spp_packetizer/src/spp_packetizer.vhd` | 50/50 | 19/19 |  |  | **5/6** |  |
+| `spp_packetizer/src/spp_packetizer_segmenter.vhd` | **61/63** | **34/35** |  |  | **10/12** | **14/19** |
+| `spp_packetizer/src/spp_packetizer_trailer.vhd` | 47/47 | 23/23 |  |  | 6/6 |  |
+| `spp_pkg/src/spp_pkg.vhd` | **29/30** | 8/8 |  |  |  |  |
 | `spp_receive/src/spp_receive.vhd` | 4/4 | 6/6 |  |  |  |  |
 | `spp_receive/src/spp_receive_buffer.vhd` | 53/53 | 26/26 |  |  | 6/6 | **1/2** |
 | `spp_receive/src/spp_receive_demux.vhd` | 111/111 | 45/45 |  |  | 11/11 | 5/5 |
@@ -57,11 +56,14 @@ The numbers below are the merge (`vcover merge`) of the coverage database of the
 | `spp_send/src/spp_send_assembly.vhd` | 124/124 | 50/50 | **3/7** | **2/11** | 8/8 | 8/8 |
 | `spp_send/src/spp_send_buffer.vhd` | 67/67 | 38/38 |  |  | 10/10 | 2/2 |
 | `spp_send/src/spp_send_mux.vhd` | 4/4 | 4/4 |  |  |  | 2/2 |
-| Total | 1015/1016 (99.9 %) | 497/497 (100.0 %) | 17/21 (81.0 %) | 25/36 (69.4 %) | 96/96 (100.0 %) | 37/38 (97.4 %) |
+| Total | 1217/1220 (99.8 %) | 594/595 (99.8 %) | 19/23 (82.6 %) | 27/38 (71.1 %) | 117/120 (97.5 %) | 57/63 (90.5 %) |
 
-Every statement except one function of the package, every branch and every condition is covered. The remaining
-misses are listed in section 4: one statement, one expression term, two state machine transitions that cannot occur,
-and a state machine that QuestaSim does not track.
+Every branch except one is covered, and every statement except three: one function of the package, and two
+statements of the packetizer that its descriptor buffer makes unreachable. The remaining misses are listed in section
+4: these statements and branch, three condition and five expression terms, two state machine transitions that cannot
+occur, and a state machine that QuestaSim does not track. The link output stage `spp_link_output` and the wiring of the
+data path reset in `spp_core` are covered completely, including both states and both transitions of the state machine
+of the stage.
 
 ## 3. Gaps found and closed
 
@@ -86,12 +88,15 @@ Each gap was closed by a new or an extended test; one guard that could not be fa
 
 | Location | Item not covered | Justification |
 | --- | --- | --- |
-| `spp_pkg/src/spp_pkg.vhd:275` | Statement of the function `hdrType` | The function is one of the header decoding functions of PK-FN-02 and is called only by the testbench of `spp_pkg` (TC-PK-01 checks its result for boundary and random headers in both simulators); the core does not need the Packet Type at the receiving end. The calls of the testbench, which is not instrumented, are not counted. |
+| `spp_pkg/src/spp_pkg.vhd:303` | Statement of the function `hdrType` | The function is one of the header decoding functions of PK-FN-02 and is called only by the testbench of `spp_pkg` (TC-PK-01 checks its result for boundary and random headers in both simulators); the core does not need the Packet Type at the receiving end. The calls of the testbench, which is not instrumented, are not counted. |
 | `spp_header/src/spp_header_insert.vhd:246` | Transition `Flush_s -> Data_s` | QuestaSim derives the transition from the assignment after the `case` statement, which runs only when an input beat is consumed. No input beat is consumed in `Flush_s`, so the transition cannot occur. |
 | `spp_header/src/spp_header_remove.vhd:211` | Transition `Idle_s -> Flush_s` | A flush beat follows only when the residue and the bytes of the last beat exceed one output beat. In `Idle_s` the residue is empty, so the bytes of one input beat never exceed one output beat. |
 | `spp_send/src/spp_send_assembly.vhd` | State machine `PState`: states `PTable_s`, `PRead_s`, `PWrite_s`, `PJob_s` and their 9 transitions | `vopt` recognises the state machine and its complete transition table, but QuestaSim records only the state after each reset (`PIdle_s`), although every packet of the regression passes all states. Every statement and branch of the file is covered, including every `when` branch and every transition assignment (lines 233, 235, 243, 250, 257 and 294). The reset assignment (line 397) does not depend on the state; TC-SE-13 resets the sending end during a transfer. |
 | `spp_receive/src/spp_receive_demux.vhd` | State machines `PState` and `SState` | `vopt` does not recognise them, so no state machine coverage is reported for the file. They have the structure of the state machines of `spp_send_assembly`; every statement and branch of the file is covered, and TC-RE-09 resets the receiving end while packets are stored and delivered. |
 | `spp_receive/src/spp_receive_buffer.vhd:109` | Expression term: `Desc_InReady` = '0' while `Fifo_InReady` = '1' | The packet FIFO and the descriptor FIFO hold `MaxPackets_g` packets each, a descriptor is written only for an accepted packet and leaves its FIFO before its packet. The descriptor FIFO is therefore never full while the packet FIFO accepts; the term keeps the descriptor FIFO from overflowing by construction. TC-RE-01 fills the buffer with packets while the port does not accept them. |
+| `spp_packetizer/src/spp_packetizer_segmenter.vhd:126` to `131`, `119`, `136`, `144`, `148` | Branch and statements of a descriptor that waits for the descriptor buffer (`Desc_Ready` = '0' while `r.DValid` = '1'), the condition term `r.DCrcKept` = '1', the expression terms with `Block_v` = '1' | The segment buffer (`olo_ft_fifo_packet`) and the descriptor buffer (`olo_ft_fifo_sync`) hold `MaxChunks_g` entries each. A descriptor is written one cycle after its segment was accepted by the segment buffer, and it leaves the descriptor buffer when its packet starts, before the segment leaves the segment buffer. The descriptor buffer therefore holds at most as many entries as the segment buffer and is never full when a descriptor is written; the branch keeps a descriptor and its CRC by construction. TC-PT-14 holds 64 segments in the buffer, the most of `MaxChunks_g` |
+| `spp_packetizer/src/spp_packetizer_segmenter.vhd:140` | Expression terms: a beat without byte enables that is not the last beat (`S_Last` = '0' with `Null_v`) | Outside the input format: all bytes of a beat are valid except in the last beat, and only a last beat may have no byte enables (user guide, section 4; decision D15). The segmenter ignores such a beat; the tests drive only beats of the format, including last beats without byte enables (TC-PT-04) |
+| `spp_packetizer/src/spp_packetizer.vhd:329` | Condition term `Data_Valid` = '0' in `Data_s` | A segment is read from the segment buffer only when it is complete (store and forward of `olo_ft_fifo_packet`), so its words follow without a gap: `Data_Valid` stays '1' until the last word. The output waits only for `Ins_Ready`, which TC-PT-01 stalls at random |
 
 ## 5. Reproduction
 

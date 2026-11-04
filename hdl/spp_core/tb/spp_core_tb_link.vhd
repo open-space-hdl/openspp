@@ -9,7 +9,7 @@
 -- Link model between two cores: passes the packets of one core to the other, or the packets of an
 -- injector stream when selected, and can drop packets or end them with an EEP. With Strip > 0 it
 -- removes the leading bytes of every packet of the sending core, as the routers of a network remove
--- path address bytes.
+-- path address bytes. Stall holds the ready of the sending core at '0' at any beat (not with Strip).
 --
 -- What this model does NOT check or reproduce: the timing and the flow control of a SpaceWire or
 -- SpaceFibre link; it never reorders packets; a packet is forwarded beat by beat with the handshake of
@@ -60,7 +60,8 @@ entity spp_core_tb_link is
         Sel        : in    std_logic;
         DropTarget : in    natural;
         EepTarget  : in    natural;
-        Strip      : in    natural := 0;
+        Strip      : in    natural   := 0;
+        Stall      : in    std_logic := '0';
         Dropped    : out   natural;
         Eeped      : out   natural;
         Forwarded  : out   natural
@@ -129,9 +130,9 @@ begin
             M_Keep    <= S_Keep;
             M_Last    <= S_Last;
             M_User    <= S_User(0 downto 0);
-            S_Ready   <= '1';
+            S_Ready   <= not Stall;
         else
-            M_Valid   <= S_Valid;
+            M_Valid   <= S_Valid and not Stall;
             Inj_Ready <= '0';
             M_Data    <= S_Data;
             M_Keep    <= S_Keep;
@@ -141,7 +142,7 @@ begin
             else
                 M_User <= S_User(0 downto 0);
             end if;
-            S_Ready <= M_Ready;
+            S_Ready <= M_Ready and not Stall;
         end if;
     end process;
 

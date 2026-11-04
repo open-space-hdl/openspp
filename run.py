@@ -141,7 +141,8 @@ def set_simulator_options(vu):
     vu.set_sim_option("ghdl.sim_flags", ["--max-stack-alloc=0"] + extra)
     vu.set_sim_option("disable_ieee_warnings", True)
     vu.add_compile_option("modelsim.vcom_flags", ["-suppress", "1346,1236,1090"])
-    vu.set_sim_option("modelsim.vsim_flags", ["-suppress", "3009,3473,8684,8683"])
+    # QuestaSim at the time resolution of GHDL (1 fs): the -t fs here follows the -t ps of VUnit and takes precedence
+    vu.set_sim_option("modelsim.vsim_flags", ["-t", "fs", "-suppress", "3009,3473,8684,8683"])
 
 
 def merge_coverage(results):

@@ -11,8 +11,10 @@ Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `p
 Line rate (TC-SE-11): 100 Octet Strings of 256 bytes left the output in 6600 cycles for 6600 beats at 32 bits and in
 1700 cycles for 1700 beats at 128 bits: no cycle between the packets.
 
-QuestaSim (Questa Sim Microchip Edition 2024.3): the same tests pass in the regression with code coverage
-(`python run.py --questa --coverage -p 1`); the coverage is in [docs/coverage.md](../../../docs/coverage.md).
+QuestaSim (Questa Sim Microchip Edition 2024.3) at a time resolution of 1 fs, release 0.2.0 on 2026-11-04: the 25 runs
+of `spp_send_tb` (15 test cases) pass without code coverage (`python run.py --questa -p 1`) and with it
+(`python run.py --questa --coverage -p 1`), in the complete regression of 668 runs; the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Summary
 

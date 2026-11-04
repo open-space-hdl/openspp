@@ -5,8 +5,10 @@
 """Synthesis check of OpenSPP with GHDL: elaborates spp_core in the default configuration, without the
 CPTP layer, with three ports of both services at 128 bits, with the maximum numbers of ports and destinations, and
 with the lower bound of the Maximum Packet Length and round robin as reset values, with the bounds of the buffers
-(specification CO-GN-02 to CO-GN-04); spp_nchar at the smallest and the largest stream width. Configurations outside
-the bounds must stop with the assertion of the bound.
+(specification CO-GN-02 to CO-GN-04); spp_nchar at the smallest and the largest stream width; spp_packetizer in the
+default configuration, at the lower and the upper bounds of its ranges, with a stream width that is not a power of
+two and in the configuration of the reference system. Configurations outside the bounds must stop with the assertion
+of the bound.
 
 Usage: python lint/synth_check.py
 Uses the libraries compiled by the regression runner (run `python run.py --compile` first).
@@ -46,14 +48,34 @@ CONFIGS = [("spp_core", {}),
            ("spp_core", {"DataWidth_g": "8", "TxBufferBytes_g": "8192", "RxBufferBytes_g": "8192",
                          "TxMaxPackets_g": "8192", "RxMaxPackets_g": "1170"}),
            ("spp_nchar", {"DataWidth_g": "8"}),
-           ("spp_nchar", {"DataWidth_g": "128"})]
+           ("spp_nchar", {"DataWidth_g": "128"}),
+           ("spp_packetizer", {}),
+           # Lower bounds: one beat per segment and in the buffer, two segments, longest secondary header
+           ("spp_packetizer", {"DataWidth_g": "8", "ChunkBytes_g": "1", "BufferBytes_g": "1", "MaxChunks_g": "2",
+                               "SecHdrBytes_g": "64", "Crc_g": "true"}),
+           # Upper bounds: longest segment (Packet Data Field of 65536 bytes), most segments
+           ("spp_packetizer", {"DataWidth_g": "128", "ChunkBytes_g": "65536", "BufferBytes_g": "65536",
+                               "MaxChunks_g": "64"}),
+           ("spp_packetizer", {"DataWidth_g": "24", "ChunkBytes_g": "48", "BufferBytes_g": "96", "SecHdrBytes_g": "7",
+                               "Crc_g": "true"}),
+           ("spp_packetizer", {"DataWidth_g": "128", "ChunkBytes_g": "4096", "BufferBytes_g": "8192",
+                               "Crc_g": "true"})]
 # Outside the bounds, with the text that the assertion must report
 NEGATIVE = [("spp_core", {"DataWidth_g": "8", "TxBufferBytes_g": "4"}, "(CO-GN-02)"),
             ("spp_core", {"DataWidth_g": "8", "TxBufferBytes_g": "524288", "RxBufferBytes_g": "524288",
                           "TxMaxPackets_g": "2", "RxMaxPackets_g": "2"}, "(CO-GN-03)"),
             ("spp_core", {"TxMaxPackets_g": "1"}, "(CO-GN-04)"),
             ("spp_core", {"TxBufferBytes_g": "64", "RxBufferBytes_g": "64", "RxMaxPackets_g": "9"}, "(CO-GN-04)"),
-            ("spp_nchar", {"DataWidth_g": "12"}, "multiple of 8")]
+            ("spp_nchar", {"DataWidth_g": "12"}, "multiple of 8"),
+            ("spp_packetizer", {"DataWidth_g": "12"}, "multiple of 8 from 8 to 128"),
+            ("spp_packetizer", {"ChunkBytes_g": "6"}, "multiple of the beat width"),
+            ("spp_packetizer", {"ChunkBytes_g": "65536", "BufferBytes_g": "65536", "Crc_g": "true"},
+             "must be at most 65536"),
+            ("spp_packetizer", {"ChunkBytes_g": "64", "BufferBytes_g": "96"}, "power of two multiple"),
+            ("spp_packetizer", {"ChunkBytes_g": "4096", "BufferBytes_g": "2048"}, "at least ChunkBytes_g"),
+            ("spp_packetizer", {"MaxChunks_g": "1"}, "MaxChunks_g must be from 2 to 64"),
+            ("spp_packetizer", {"MaxChunks_g": "65"}, "MaxChunks_g must be from 2 to 64"),
+            ("spp_packetizer", {"SecHdrBytes_g": "65"}, "SecHdrBytes_g must be at most 64")]
 
 
 def run_synth(top, generics, out_dir):

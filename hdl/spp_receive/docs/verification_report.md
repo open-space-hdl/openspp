@@ -11,8 +11,10 @@ Run on 2026-10-14 with GHDL 6.0.0 (mcode), VUnit 5.0.0.dev7, UVVM 2026.03.20: `p
 Line rate (TC-RE-07): 100 packets of 262 bytes left the port in 6697 cycles for 6600 received beats at 32 bits and in
 1798 cycles for 1700 received beats at 128 bits: one cycle per packet (the read stall of the packet FIFO).
 
-QuestaSim (Questa Sim Microchip Edition 2024.3): the same tests pass in the regression with code coverage
-(`python run.py --questa --coverage -p 1`); the coverage is in [docs/coverage.md](../../../docs/coverage.md).
+QuestaSim (Questa Sim Microchip Edition 2024.3) at a time resolution of 1 fs, release 0.2.0 on 2026-11-04: the 21 runs
+of `spp_receive_tb` (11 test cases) pass without code coverage (`python run.py --questa -p 1`) and with it
+(`python run.py --questa --coverage -p 1`), in the complete regression of 668 runs; the coverage is in
+[docs/coverage.md](../../../docs/coverage.md).
 
 ## 2. Summary
 

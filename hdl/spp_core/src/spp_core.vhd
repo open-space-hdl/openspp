@@ -54,9 +54,11 @@ entity spp_core is
         ClkFreqHz_g     : real                                      := 100.0e6
     );
     port (
-        -- Control
+        -- Control: Rst resets the whole core, DpRst every function except the link output stage, which ends a
+        -- packet open on M_Link with an EEP
         Clk               : in    std_logic;
         Rst               : in    std_logic;
+        DpRst             : in    std_logic := '0';
         -- Send ports (PACKET.request, OCTET_STRING.request)
         S_Tx_Valid        : in    std_logic_vector(NumTx_g - 1 downto 0);
         S_Tx_Ready        : out   std_logic_vector(NumTx_g - 1 downto 0);
@@ -217,8 +219,20 @@ architecture struct of spp_core is
     signal InjRx       : std_logic;
     signal InjChannel  : std_logic_vector(5 downto 0);
     signal InjDouble   : std_logic;
+    -- Reset of the data path (every module except the link output stage)
+    signal RstDp       : std_logic;
+    -- Link packets in front of the link output stage
+    signal LkIn_Valid  : std_logic;
+    signal LkIn_Ready  : std_logic;
+    signal LkIn_Data   : std_logic_vector(DataWidth_g - 1 downto 0);
+    signal LkIn_Keep   : std_logic_vector(DataWidth_g / 8 - 1 downto 0);
+    signal LkIn_Last   : std_logic;
+    signal LkIn_User   : std_logic_vector(LinkUserWidth_c - 1 downto 0);
 
 begin
+
+    -- Rst or DpRst resets every module except the link output stage (specification CO-RS-02)
+    RstDp <= Rst or DpRst;
 
     -- Bounds of the buffer generics (specification CO-GN-02 to CO-GN-04, depth limit of Open Logic)
     assert TxBeats_c >= MinBeats_c
@@ -274,7 +288,7 @@ begin
         )
         port map (
             Clk            => Clk,
-            Rst            => Rst,
+            Rst            => RstDp,
             S_Tx_Valid     => S_Tx_Valid,
             S_Tx_Ready     => S_Tx_Ready,
             S_Tx_Data      => S_Tx_Data,
@@ -321,19 +335,19 @@ begin
             )
             port map (
                 Clk             => Clk,
-                Rst             => Rst,
+                Rst             => RstDp,
                 S_Pkt_Valid     => TxPkt_Valid,
                 S_Pkt_Ready     => TxPkt_Ready,
                 S_Pkt_Data      => TxPkt_Data,
                 S_Pkt_Keep      => TxPkt_Keep,
                 S_Pkt_Last      => TxPkt_Last,
                 S_Pkt_User      => TxPkt_User,
-                M_Link_Valid    => M_Link_Valid,
-                M_Link_Ready    => M_Link_Ready,
-                M_Link_Data     => M_Link_Data,
-                M_Link_Keep     => M_Link_Keep,
-                M_Link_Last     => M_Link_Last,
-                M_Link_User     => M_Link_User,
+                M_Link_Valid    => LkIn_Valid,
+                M_Link_Ready    => LkIn_Ready,
+                M_Link_Data     => LkIn_Data,
+                M_Link_Keep     => LkIn_Keep,
+                M_Link_Last     => LkIn_Last,
+                M_Link_User     => LkIn_User,
                 Cfg_DestAddr    => DestAddr,
                 Cfg_DestAddrLen => DestAddrLen,
                 Cfg_DestTla     => DestTla,
@@ -346,7 +360,7 @@ begin
             )
             port map (
                 Clk          => Clk,
-                Rst          => Rst,
+                Rst          => RstDp,
                 S_Link_Valid => S_Link_Valid,
                 S_Link_Ready => S_Link_Ready,
                 S_Link_Data  => S_Link_Data,
@@ -369,12 +383,12 @@ begin
 
     g_plain : if not Encapsulation_g generate
         -- Space Packets directly on the link; the destination index in TUser routes them in the subnetwork
-        M_Link_Valid <= TxPkt_Valid;
-        TxPkt_Ready  <= M_Link_Ready;
-        M_Link_Data  <= TxPkt_Data;
-        M_Link_Keep  <= TxPkt_Keep;
-        M_Link_Last  <= TxPkt_Last;
-        M_Link_User  <= TxPkt_User;
+        LkIn_Valid  <= TxPkt_Valid;
+        TxPkt_Ready <= LkIn_Ready;
+        LkIn_Data   <= TxPkt_Data;
+        LkIn_Keep   <= TxPkt_Keep;
+        LkIn_Last   <= TxPkt_Last;
+        LkIn_User   <= TxPkt_User;
 
         RxPkt_Valid                <= S_Link_Valid;
         S_Link_Ready               <= RxPkt_Ready;
@@ -385,6 +399,29 @@ begin
         RxPkt_User(RxPktUserUa_t)  <= (others => '0');
         Err(NumTx_g + 1)           <= ErrEventNone_c;
     end generate;
+
+    -- Link output stage (LK-1): reset by Rst only, ends an open packet with an EEP at the data path reset
+    i_link_output : entity work.spp_link_output
+        generic map (
+            DataWidth_g => DataWidth_g
+        )
+        port map (
+            Clk          => Clk,
+            Rst          => Rst,
+            DpRst        => DpRst,
+            S_Pkt_Valid  => LkIn_Valid,
+            S_Pkt_Ready  => LkIn_Ready,
+            S_Pkt_Data   => LkIn_Data,
+            S_Pkt_Keep   => LkIn_Keep,
+            S_Pkt_Last   => LkIn_Last,
+            S_Pkt_User   => LkIn_User,
+            M_Link_Valid => M_Link_Valid,
+            M_Link_Ready => M_Link_Ready,
+            M_Link_Data  => M_Link_Data,
+            M_Link_Keep  => M_Link_Keep,
+            M_Link_Last  => M_Link_Last,
+            M_Link_User  => M_Link_User
+        );
 
     -- Receiving end (RE-1 to RE-3, TB-2)
     i_receive : entity work.spp_receive
@@ -398,7 +435,7 @@ begin
         )
         port map (
             Clk             => Clk,
-            Rst             => Rst,
+            Rst             => RstDp,
             S_Pkt_Valid     => RxPkt_Valid,
             S_Pkt_Ready     => RxPkt_Ready,
             S_Pkt_Data      => RxPkt_Data,
@@ -455,7 +492,7 @@ begin
         )
         port map (
             Clk               => Clk,
-            Rst               => Rst,
+            Rst               => RstDp,
             S_AxiLite_ArAddr  => S_AxiLite_ArAddr,
             S_AxiLite_ArValid => S_AxiLite_ArValid,
             S_AxiLite_ArReady => S_AxiLite_ArReady,
