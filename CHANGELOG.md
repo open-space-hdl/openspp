@@ -11,6 +11,11 @@ and a patch version for a fix.
 - `run.py` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory of `vsim`) or from `vsim` on the `PATH`, and
   stops with a message when neither gives it; it has no default installation path any more.
 
+### Fixed
+
+- Documentation website: builds with Python-Markdown 3.11.3 (heading anchors hook takes the new optional argument;
+  markdown pinned).
+
 ## [0.2.0] - 2026-11-04
 
 Interface change of `spp_core`: the new input port `DpRst` (data path reset, default '0'), and the link output
