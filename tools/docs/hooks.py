@@ -33,8 +33,9 @@ from mkdocs.structure.files import File
 log = logging.getLogger("mkdocs.hooks.docs_site")
 
 
-def _unique_id(slug, ids):
-    """Number repeated headings like GitHub (name, name-1, name-2) so that anchors written for GitHub work."""
+def _unique_id(slug, ids, counters=None):
+    """Number repeated headings like GitHub (name, name-1, name-2) so that anchors written for GitHub work. The
+    optional cache `counters` of the toc extension (Markdown 3.11.3 and later) is not needed and ignored."""
     candidate, count = slug, 0
     while candidate in ids or not candidate:
         count += 1
