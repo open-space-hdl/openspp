@@ -6,8 +6,17 @@ and a patch version for a fix.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-18
+
+Patch release on Open Logic 4.8.0-ft.2 (1f4a6c3), based on Open Logic 4.8.0. No port, generic, stream format,
+`TUser` layout or register changes. The RTL and the testbenches are those of 0.2.0, and the Open Logic files that
+OpenSPP uses are identical in 4.7.0-ft.12 and 4.8.0-ft.2, so the QuestaSim runs of 0.2.0 (with and without code
+coverage) remain valid.
+
 ### Changed
 
+- Open Logic 4.8.0-ft.2 (1f4a6c3), based on Open Logic 4.8.0 (from 4.7.0-ft.12). The 27 Open Logic files that the
+  sources and testbenches of OpenSPP use are identical in both tags; no port, generic or behaviour of OpenSPP changes.
 - `run.py` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory of `vsim`) or from `vsim` on the `PATH`, and
   stops with a message when neither gives it; it has no default installation path any more.
 
