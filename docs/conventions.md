@@ -94,7 +94,8 @@ names the clauses with their standard (`SPP 4.1.3.5`, `CPTP 5.5.4.4`) or `none`.
 - A test passes only when UVVM reports no unexpected alerts and every expected alert occurred
   (`spp_tb_pkg.sppTestEnd`).
 - Tests observe ports and management interfaces only, never internal signals.
-- GHDL is the default simulator; QuestaSim (`python run.py --questa`) is used for code coverage
+- GHDL is the default simulator; QuestaSim (`python run.py --questa`, taken from `VUNIT_MODELSIM_PATH`, the
+  directory of `vsim`, or from `vsim` on the `PATH`) is used for code coverage
   ([coverage.md](coverage.md)). Every test passes in GHDL and in QuestaSim, in QuestaSim both with code coverage
   (`--coverage`) and without it: the coverage options reduce the optimisation of the simulator, so only the run
   without them shows the behaviour of a fully optimised simulation.

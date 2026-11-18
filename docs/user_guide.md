@@ -10,7 +10,7 @@ described in [architecture.md](architecture.md), the registers in the generated
 
 | Library | Sources | Order |
 | --- | --- | --- |
-| `olo` | Open Logic areas `base`, `axi` and `ft` of the submodule `open-logic/` | `open-logic/compile_order.txt` |
+| `olo` | Open Logic, fork open-space-hdl/open-logic-ft, tag `4.8.0-ft.2` (1f4a6c3), based on Open Logic 4.8.0 (submodule `open-logic/`): the areas `base`, `axi` and `ft` | `open-logic/compile_order.txt` |
 | `openspp` | `hdl/<module>/src/*.vhd` of every module of `component_list.txt` | `compile_order.txt`: the modules in the order of `component_list.txt`, within a module packages first |
 
 All sources are VHDL-2008 and contain no vendor primitive. `spp_nchar` is needed only to connect a SpaceWire port with
@@ -512,3 +512,5 @@ python tools/compliance.py --check          # traceability of SPP and CPTP
 python tools/regmap.py --check              # generated register map up to date
 python run.py --compile-order               # compile_order.txt of the synthesis sources
 ```
+
+`--questa` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory of `vsim`) or from `vsim` on the `PATH`.

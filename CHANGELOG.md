@@ -4,6 +4,27 @@ The notable changes of OpenSPP. The versions follow semantic versioning: 0.y.z w
 version for an incompatible change of ports, stream formats, generics or register map, a minor version for a feature
 and a patch version for a fix.
 
+## [Unreleased]
+
+## [0.2.1] - 2026-11-18
+
+Patch release on Open Logic 4.8.0-ft.2 (1f4a6c3), based on Open Logic 4.8.0. No port, generic, stream format,
+`TUser` layout or register changes. The RTL and the testbenches are those of 0.2.0, and the Open Logic files that
+OpenSPP uses are identical in 4.7.0-ft.12 and 4.8.0-ft.2, so the QuestaSim runs of 0.2.0 (with and without code
+coverage) remain valid.
+
+### Changed
+
+- Open Logic 4.8.0-ft.2 (1f4a6c3), based on Open Logic 4.8.0 (from 4.7.0-ft.12). The 27 Open Logic files that the
+  sources and testbenches of OpenSPP use are identical in both tags; no port, generic or behaviour of OpenSPP changes.
+- `run.py` takes QuestaSim from `VUNIT_MODELSIM_PATH` (the directory of `vsim`) or from `vsim` on the `PATH`, and
+  stops with a message when neither gives it; it has no default installation path any more.
+
+### Fixed
+
+- Documentation website: builds with Python-Markdown 3.11.3 (heading anchors hook takes the new optional argument;
+  markdown pinned).
+
 ## [0.2.0] - 2026-11-04
 
 Interface change of `spp_core`: the new input port `DpRst` (data path reset, default '0'), and the link output
