@@ -33,6 +33,10 @@ optimisation), all passed in both. The numbers below are covered/total bins per 
 these 668 tests; bold marks a metric with misses. The FSM columns of `spp_send_assembly.vhd` count both of its state
 machines; section 4 explains the misses.
 
+The release 0.2.1 has the RTL and the testbenches of 0.2.0 and moves to Open Logic 4.8.0-ft.2, in which the Open
+Logic files that OpenSPP uses are identical to 4.7.0-ft.12. These runs are therefore the QuestaSim evidence of 0.2.1
+as well.
+
 | File | Statements | Branches | FSM States | FSM Transitions | Conditions | Expressions |
 | --- | --- | --- | --- | --- | --- | --- |
 | `spp_apid_table/src/spp_apid_table.vhd` | 62/62 | 41/41 | 4/4 | 7/7 | 11/11 | 4/4 |
